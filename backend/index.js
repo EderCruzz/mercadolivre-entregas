@@ -142,12 +142,19 @@ app.get("/ml/me", async (req, res) => {
 /* =======================
    Mercado Livre - Pedidos
 ======================= */
-app.get("/ml/orders", async (req, res) => {
+app.get('/ml/orders', async (req, res) => {
   try {
-    const accessToken = await getToken();
+    // 1️⃣ Busca token no MongoDB
+    const tokenDoc = await Token.findOne();
+    if (!tokenDoc) {
+      return res.status(401).json({ error: 'Token não encontrado' });
+    }
 
-    const response = await axios.get(
-      "https://api.mercadolibre.com/orders/search?seller=me",
+    const accessToken = tokenDoc.access_token;
+
+    // 2️⃣ Descobre quem é o usuário (buyer)
+    const userResponse = await axios.get(
+      'https://api.mercadolibre.com/users/me',
       {
         headers: {
           Authorization: `Bearer ${accessToken}`
@@ -155,15 +162,29 @@ app.get("/ml/orders", async (req, res) => {
       }
     );
 
-    res.json(response.data);
+    const buyerId = userResponse.data.id;
+
+    // 3️⃣ Busca COMPRAS (orders como comprador)
+    const ordersResponse = await axios.get(
+      `https://api.mercadolibre.com/orders/search?buyer=${buyerId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    res.json(ordersResponse.data);
+
   } catch (err) {
-    console.error("Erro ao buscar pedidos:", err.message);
+    console.error('Erro ao buscar compras:', err.response?.data || err.message);
     res.status(500).json({
-      error: "Erro ao buscar pedidos do Mercado Livre",
-      details: err.message
+      error: 'Erro ao buscar compras do Mercado Livre',
+      details: err.response?.data || err.message
     });
   }
 });
+
 
 
 /* =======================
