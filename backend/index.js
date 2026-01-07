@@ -92,6 +92,42 @@ app.get('/oauth/callback', async (req, res) => {
   }
 });
 
+const fs = require('fs');
+const path = require('path');
+
+// BUSCAR PEDIDOS DO MERCADO LIVRE
+app.get('/ml/orders', async (req, res) => {
+  try {
+    const tokenPath = path.join(__dirname, 'tokens', 'ml-token.json');
+
+    if (!fs.existsSync(tokenPath)) {
+      return res.status(401).json({
+        error: 'Token não encontrado. Faça o login OAuth novamente.'
+      });
+    }
+
+    const tokenData = JSON.parse(fs.readFileSync(tokenPath, 'utf-8'));
+    const accessToken = tokenData.access_token;
+    const userId = tokenData.user_id;
+
+    const response = await axios.get(
+      `https://api.mercadolibre.com/orders/search?seller=${userId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    res.json(response.data);
+
+  } catch (err) {
+    console.error('❌ ERRO AO BUSCAR PEDIDOS:', err.response?.data || err.message);
+    res.status(500).json({
+      error: 'Erro ao buscar pedidos do Mercado Livre'
+    });
+  }
+});
 
 
 const PORT = process.env.PORT || 3333;
