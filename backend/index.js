@@ -126,6 +126,34 @@ app.get('/ml/orders', async (req, res) => {
   }
 });
 
+app.get('/ml/me', async (req, res) => {
+  try {
+    const token = getToken(); // mesma função que você já usa
+
+    const response = await axios.get(
+      'https://api.mercadolibre.com/users/me',
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      'Erro ao buscar usuário:',
+      error.response?.data || error.message
+    );
+
+    res.status(500).json({
+      error: 'Erro ao buscar usuário Mercado Livre',
+      details: error.response?.data || error.message
+    });
+  }
+});
+
+
 
 const PORT = process.env.PORT || 3333;
 
