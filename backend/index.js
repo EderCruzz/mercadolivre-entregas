@@ -35,13 +35,13 @@ async function getToken() {
     throw new Error("Token não encontrado. Faça o login OAuth novamente.");
   }
 
-  // Token expirado?
   if (Date.now() > token.expires_at) {
     throw new Error("Token expirado. Faça o login OAuth novamente.");
   }
 
   return token.access_token;
 }
+
 
 /* =======================
    Rotas básicas
@@ -131,12 +131,13 @@ app.get("/ml/me", async (req, res) => {
     res.json(response.data);
   } catch (err) {
     console.error("Erro ao buscar usuário:", err.message);
-    res.status(401).json({
+    res.status(500).json({
       error: "Erro ao buscar usuário Mercado Livre",
       details: err.message
     });
   }
 });
+
 
 /* =======================
    Mercado Livre - Pedidos
@@ -157,12 +158,13 @@ app.get("/ml/orders", async (req, res) => {
     res.json(response.data);
   } catch (err) {
     console.error("Erro ao buscar pedidos:", err.message);
-    res.status(401).json({
+    res.status(500).json({
       error: "Erro ao buscar pedidos do Mercado Livre",
       details: err.message
     });
   }
 });
+
 
 /* =======================
    Server
