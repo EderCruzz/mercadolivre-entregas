@@ -1,119 +1,126 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const qs = require('querystring');
+require("dotenv").config();
 
-const fs = require('fs');
-const path = require('path');
+const express = require("express");
+const cors = require("cors");
+const axios = require("axios");
+const mongoose = require("mongoose");
 
-const TOKEN_PATH = path.join(__dirname, 'ml_token.json');
+const app = express();
 
-function getToken() {
-  if (!fs.existsSync(TOKEN_PATH)) {
-    throw new Error('Token não encontrado. Faça o login OAuth novamente.');
+/* =======================
+   MongoDB
+======================= */
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log("✅ MongoDB conectado"))
+  .catch(err => console.error("❌ Erro MongoDB:", err));
+
+/* =======================
+   Models
+======================= */
+const Token = require("./src/models/Token");
+
+/* =======================
+   Middlewares
+======================= */
+app.use(cors());
+app.use(express.json());
+
+/* =======================
+   Utils
+======================= */
+async function getToken() {
+  const token = await Token.findOne().sort({ createdAt: -1 });
+
+  if (!token) {
+    throw new Error("Token não encontrado. Faça o login OAuth novamente.");
   }
 
-  const data = fs.readFileSync(TOKEN_PATH, 'utf-8');
-  const token = JSON.parse(data);
+  // Token expirado?
+  if (Date.now() > token.expires_at) {
+    throw new Error("Token expirado. Faça o login OAuth novamente.");
+  }
 
   return token.access_token;
 }
 
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-// MOCK por enquanto
-app.get('/entregas', (req, res) => {
-  res.json([
-    {
-      id: 1,
-      item: 'Monitor LG 27"',
-      status: 'Saiu para entrega',
-      previsao: '2026-01-08',
-      palavraChave: 'PORTARIA',
-      rastreio: 'BR123456789'
-    }
-  ]);
+/* =======================
+   Rotas básicas
+======================= */
+app.get("/ping", (req, res) => {
+  res.send("pong");
 });
 
-const axios = require('axios');
-
-const CLIENT_ID = process.env.ML_CLIENT_ID;
-const CLIENT_SECRET = process.env.ML_CLIENT_SECRET;
-const REDIRECT_URI = 'https://mercadolivre-entregas.onrender.com/oauth/callback';
-
-// TESTE SIMPLES (diagnóstico)
-app.get('/ping', (req, res) => {
-  res.send('pong');
-});
-
-// LOGIN OAUTH
-app.get('/oauth/login', (req, res) => {
+/* =======================
+   OAuth Login
+======================= */
+app.get("/oauth/login", (req, res) => {
   const state = Math.random().toString(36).substring(2);
 
   const authUrl =
     `https://auth.mercadolivre.com.br/authorization` +
     `?response_type=code` +
-    `&client_id=${CLIENT_ID}` +
-    `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+    `&client_id=${process.env.ML_CLIENT_ID}` +
+    `&redirect_uri=${encodeURIComponent(process.env.ML_REDIRECT_URI)}` +
     `&state=${state}`;
 
   res.redirect(authUrl);
 });
 
-// CALLBACK OAUTH
-
-app.get('/oauth/callback', async (req, res) => {
+/* =======================
+   OAuth Callback
+======================= */
+app.get("/oauth/callback", async (req, res) => {
   const { code } = req.query;
+
+  if (!code) {
+    return res.status(400).send("Código OAuth não recebido");
+  }
 
   try {
     const response = await axios.post(
-      'https://api.mercadolibre.com/oauth/token',
+      "https://api.mercadolibre.com/oauth/token",
       {
-        grant_type: 'authorization_code',
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
+        grant_type: "authorization_code",
+        client_id: process.env.ML_CLIENT_ID,
+        client_secret: process.env.ML_CLIENT_SECRET,
         code,
-        redirect_uri: REDIRECT_URI
+        redirect_uri: process.env.ML_REDIRECT_URI
       },
-      {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
+      { headers: { "Content-Type": "application/json" } }
     );
 
-    const tokenData = {
+    const expiresAt = Date.now() + response.data.expires_in * 1000;
+
+    // Remove token antigo
+    await Token.deleteMany({});
+
+    // Salva novo token
+    await Token.create({
       access_token: response.data.access_token,
       refresh_token: response.data.refresh_token,
-      expires_in: response.data.expires_in,
-      user_id: response.data.user_id,
-      created_at: new Date().toISOString()
-    };
+      expires_at: expiresAt,
+      user_id: response.data.user_id
+    });
 
-    const tokenPath = path.join(__dirname, 'tokens', 'ml-token.json');
+    console.log("✅ TOKEN SALVO NO MONGODB COM SUCESSO");
 
-    fs.writeFileSync(tokenPath, JSON.stringify(tokenData, null, 2));
-
-    console.log('✅ TOKEN SALVO COM SUCESSO');
-
-    res.send('Autorização concluída! Pode fechar esta página.');
+    res.send("Autorização concluída! Pode fechar esta página.");
 
   } catch (err) {
-    console.error('❌ ERRO OAUTH:', err.response?.data || err.message);
-    res.status(500).send('Erro no OAuth');
+    console.error("❌ ERRO OAUTH:", err.response?.data || err.message);
+    res.status(500).send("Erro no OAuth");
   }
 });
 
-// BUSCAR PEDIDOS DO MERCADO LIVRE
-app.get('/ml/orders', async (req, res) => {
+/* =======================
+   Mercado Livre - Usuário
+======================= */
+app.get("/ml/me", async (req, res) => {
   try {
-    const accessToken = getToken();
+    const accessToken = await getToken();
 
     const response = await axios.get(
-      'https://api.mercadolibre.com/orders/search?seller=me',
+      "https://api.mercadolibre.com/users/me",
       {
         headers: {
           Authorization: `Bearer ${accessToken}`
@@ -123,22 +130,23 @@ app.get('/ml/orders', async (req, res) => {
 
     res.json(response.data);
   } catch (err) {
-    console.error('Erro ao buscar pedidos:', err.message);
-    res.status(500).json({
-      error: 'Erro ao buscar pedidos do Mercado Livre',
+    console.error("Erro ao buscar usuário:", err.message);
+    res.status(401).json({
+      error: "Erro ao buscar usuário Mercado Livre",
       details: err.message
     });
   }
 });
- 
 
-
-app.get('/ml/me', async (req, res) => {
+/* =======================
+   Mercado Livre - Pedidos
+======================= */
+app.get("/ml/orders", async (req, res) => {
   try {
-    const accessToken = getToken();
+    const accessToken = await getToken();
 
     const response = await axios.get(
-      'https://api.mercadolibre.com/users/me',
+      "https://api.mercadolibre.com/orders/search?seller=me",
       {
         headers: {
           Authorization: `Bearer ${accessToken}`
@@ -148,18 +156,18 @@ app.get('/ml/me', async (req, res) => {
 
     res.json(response.data);
   } catch (err) {
-    console.error('Erro ao buscar usuário:', err.message);
-    res.status(500).json({
-      error: 'Erro ao buscar usuário Mercado Livre',
+    console.error("Erro ao buscar pedidos:", err.message);
+    res.status(401).json({
+      error: "Erro ao buscar pedidos do Mercado Livre",
       details: err.message
     });
   }
 });
 
+/* =======================
+   Server
+======================= */
 const PORT = process.env.PORT || 3333;
-
 app.listen(PORT, () => {
   console.log(`🚀 Backend rodando na porta ${PORT}`);
 });
-
-
