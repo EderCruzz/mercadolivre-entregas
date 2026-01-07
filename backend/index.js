@@ -198,6 +198,9 @@ app.get('/ml/orders', async (req, res) => {
 
 app.get("/entregas", async (req, res) => {
   try {
+    // 🔎 Filtro opcional por status
+    const statusFiltro = req.query.status;
+
     // 1️⃣ Busca token
     const tokenDoc = await Token.findOne();
     if (!tokenDoc) {
@@ -229,7 +232,7 @@ app.get("/entregas", async (req, res) => {
     );
 
     // 4️⃣ Mapeia para entregas
-    const entregas = ordersResponse.data.results.map(order => {
+    let entregas = ordersResponse.data.results.map(order => {
       const item = order.order_items?.[0]?.item;
 
       return {
@@ -245,6 +248,13 @@ app.get("/entregas", async (req, res) => {
       };
     });
 
+    // 5️⃣ Aplica filtro se existir
+    if (statusFiltro) {
+      entregas = entregas.filter(
+        e => e.status_entrega === statusFiltro
+      );
+    }
+
     res.json(entregas);
 
   } catch (err) {
@@ -255,6 +265,7 @@ app.get("/entregas", async (req, res) => {
     });
   }
 });
+
 
 /* =======================
    Server
