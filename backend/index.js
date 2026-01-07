@@ -225,49 +225,37 @@ app.get("/entregas", async (req, res) => {
       }
     );
 
-    // 4️⃣ Monta entregas
+    // 4️⃣ Monta entregas + imagem real
     let entregas = await Promise.all(
       ordersResponse.data.results.map(async (order) => {
-        const item = order.order_items?.[0]?.item;
+        const orderItem = order.order_items?.[0];
+        const itemId = orderItem?.item?.id;
+        const produto = orderItem?.item?.title || "Produto não identificado";
 
-        let statusEntrega = "não informado";
-        let rastreio = null;
-        let transportadora = "Mercado Envios";
-        let dataEntrega = null;
+        let imagem = null;
 
-        if (order.shipping?.id) {
+        // 🔹 BUSCA IMAGEM REAL DO ITEM
+        if (itemId) {
           try {
-            const shipmentResponse = await axios.get(
-              `https://api.mercadolibre.com/shipments/${order.shipping.id}`,
-              {
-                headers: { Authorization: `Bearer ${accessToken}` }
-              }
+            const itemResponse = await axios.get(
+              `https://api.mercadolibre.com/items/${itemId}`
             );
-
-            statusEntrega = shipmentResponse.data.status;
-            rastreio = shipmentResponse.data.tracking_number || null;
-            transportadora =
-              shipmentResponse.data.shipping_option?.name || "Mercado Envios";
-            dataEntrega = shipmentResponse.data.date_delivered || null;
-
+            imagem = itemResponse.data.thumbnail;
           } catch (e) {
-            console.warn(`⚠️ Falha ao buscar shipment ${order.shipping.id}`);
+            console.warn(`⚠️ Falha ao buscar imagem do item ${itemId}`);
           }
         }
 
         return {
           pedido_id: order.id,
-          produto: item?.title || "Produto não identificado",
-          imagem: item?.thumbnail || null,
-          vendedor: order.seller?.nickname || "Vendedor",
-          palavra_chave: null,
+          produto,
+          imagem, // 👈 IMAGEM REAL AQUI
           status_pedido: order.status,
-          status_entrega: statusEntrega,
+          valor: order.total_amount,
           data_compra: order.date_created,
-          data_entrega: dataEntrega,
-          transportadora,
-          rastreio,
-          valor: order.total_amount
+          status_entrega: "não informado",
+          transportadora: "Mercado Envios",
+          rastreio: null
         };
       })
     );
@@ -298,6 +286,7 @@ app.get("/entregas", async (req, res) => {
     });
   }
 });
+
 
 
 app.get("/entregas/cache", async (req, res) => {
