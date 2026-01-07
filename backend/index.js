@@ -198,61 +198,88 @@ app.get('/ml/orders', async (req, res) => {
 
 app.get("/entregas", async (req, res) => {
   try {
-    // 🔎 Filtro opcional por status
     const statusFiltro = req.query.status;
 
-    // 1️⃣ Busca token
+    // 1️⃣ Token
     const tokenDoc = await Token.findOne();
     if (!tokenDoc) {
       return res.status(401).json({ error: "Token não encontrado" });
     }
-
     const accessToken = tokenDoc.access_token;
 
-    // 2️⃣ Descobre o buyerId
+    // 2️⃣ Buyer ID
     const userResponse = await axios.get(
       "https://api.mercadolibre.com/users/me",
       {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
+        headers: { Authorization: `Bearer ${accessToken}` }
       }
     );
-
     const buyerId = userResponse.data.id;
 
-    // 3️⃣ Busca compras
+    // 3️⃣ Compras
     const ordersResponse = await axios.get(
       `https://api.mercadolibre.com/orders/search?buyer=${buyerId}&sort=date_desc`,
       {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
+        headers: { Authorization: `Bearer ${accessToken}` }
       }
     );
 
-    // 4️⃣ Mapeia para entregas
-    let entregas = ordersResponse.data.results.map(order => {
-      const item = order.order_items?.[0]?.item;
+    // 4️⃣ Monta entregas com consulta de shipment
+    let entregas = await Promise.all(
+      ordersResponse.data.results.map(async (order) => {
+        const item = order.order_items?.[0]?.item;
 
-      return {
-        pedido_id: order.id,
-        produto: item?.title || "Produto não identificado",
-        status_pedido: order.status,
-        valor: order.total_amount,
-        data_compra: order.date_created,
-        status_entrega: order.shipping?.status || "não informado",
-        transportadora:
-          order.shipping?.shipping_option?.name || "Mercado Envios",
-        rastreio: order.shipping?.tracking_number || null
-      };
-    });
+        let statusEntrega = "não informado";
+        let rastreio = null;
+        let transportadora = "Mercado Envios";
 
-    // 5️⃣ Aplica filtro se existir
+        if (order.shipping?.id) {
+          try {
+            const shipmentResponse = await axios.get(
+              `https://api.mercadolibre.com/shipments/${order.shipping.id}`,
+              {
+                headers: { Authorization: `Bearer ${accessToken}` }
+              }
+            );
+
+            statusEntrega = shipmentResponse.data.status;
+            rastreio = shipmentResponse.data.tracking_number || null;
+            transportadora =
+              shipmentResponse.data.shipping_option?.name || "Mercado Envios";
+          } catch (e) {
+            console.warn(
+              `⚠️ Falha ao buscar shipment ${order.shipping.id}`
+            );
+          }
+        }
+
+        return {
+          pedido_id: order.id,
+          produto: item?.title || "Produto não identificado",
+          status_pedido: order.status,
+          valor: order.total_amount,
+          data_compra: order.date_created,
+          status_entrega: statusEntrega,
+          transportadora,
+          rastreio
+        };
+      })
+    );
+
+    // 5️⃣ Filtro inteligente
     if (statusFiltro) {
-      entregas = entregas.filter(
-        e => e.status_entrega === statusFiltro
-      );
+      entregas = entregas.filter(e => {
+        if (statusFiltro === "delivered") {
+          return e.status_entrega === "delivered";
+        }
+        if (statusFiltro === "shipped") {
+          return ["shipped", "ready_to_ship", "handling"].includes(e.status_entrega);
+        }
+        if (statusFiltro === "not_delivered") {
+          return ["pending", "not_delivered"].includes(e.status_entrega);
+        }
+        return true;
+      });
     }
 
     res.json(entregas);
@@ -265,6 +292,7 @@ app.get("/entregas", async (req, res) => {
     });
   }
 });
+
 
 
 /* =======================
