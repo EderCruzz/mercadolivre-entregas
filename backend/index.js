@@ -47,37 +47,51 @@ app.get('/oauth/login', (req, res) => {
 });
 
 // CALLBACK OAUTH
-app.get('/oauth/callback', async (req, res) => {
-  const { code, state } = req.query;
+const fs = require('fs');
+const path = require('path');
 
-  if (!code) {
-    return res.status(400).send('Code não recebido');
-  }
+app.get('/oauth/callback', async (req, res) => {
+  const { code } = req.query;
 
   try {
     const response = await axios.post(
       'https://api.mercadolibre.com/oauth/token',
-      qs.stringify({
+      {
         grant_type: 'authorization_code',
         client_id: CLIENT_ID,
         client_secret: CLIENT_SECRET,
         code,
         redirect_uri: REDIRECT_URI
-      }),
+      },
       {
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
+          'Content-Type': 'application/json'
         }
       }
     );
 
-    console.log('ACCESS TOKEN:', response.data.access_token);
+    const tokenData = {
+      access_token: response.data.access_token,
+      refresh_token: response.data.refresh_token,
+      expires_in: response.data.expires_in,
+      user_id: response.data.user_id,
+      created_at: new Date().toISOString()
+    };
+
+    const tokenPath = path.join(__dirname, 'tokens', 'ml-token.json');
+
+    fs.writeFileSync(tokenPath, JSON.stringify(tokenData, null, 2));
+
+    console.log('✅ TOKEN SALVO COM SUCESSO');
+
     res.send('Autorização concluída! Pode fechar esta página.');
+
   } catch (err) {
-    console.error('OAuth error:', err.response?.data || err.message);
+    console.error('❌ ERRO OAUTH:', err.response?.data || err.message);
     res.status(500).send('Erro no OAuth');
   }
 });
+
 
 
 const PORT = process.env.PORT || 3333;
