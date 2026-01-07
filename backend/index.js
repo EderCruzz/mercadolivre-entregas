@@ -225,15 +225,18 @@ app.get("/entregas", async (req, res) => {
       }
     );
 
-    // 4️⃣ Monta entregas + imagem real via shipment
+    // 4️⃣ Monta entregas (FORMA SEGURA)
     let entregas = await Promise.all(
       ordersResponse.data.results.map(async (order) => {
         const orderItem = order.order_items?.[0];
         const produto = orderItem?.item?.title || "Produto não identificado";
 
         let imagem = null;
+        let statusEntrega = "não informado";
+        let rastreio = null;
+        let transportadora = "Mercado Envios";
 
-        // 🔹 BUSCA IMAGEM PELO SHIPMENT (forma correta)
+        // 🔹 Shipment (fonte correta)
         if (order.shipping?.id) {
           try {
             const shipmentResponse = await axios.get(
@@ -246,6 +249,11 @@ app.get("/entregas", async (req, res) => {
             imagem =
               shipmentResponse.data.items?.[0]?.picture || null;
 
+            statusEntrega = shipmentResponse.data.status || statusEntrega;
+            rastreio = shipmentResponse.data.tracking_number || null;
+            transportadora =
+              shipmentResponse.data.shipping_option?.name || transportadora;
+
           } catch (e) {
             console.warn(`⚠️ Falha ao buscar shipment ${order.shipping.id}`);
           }
@@ -254,18 +262,16 @@ app.get("/entregas", async (req, res) => {
         return {
           pedido_id: order.id,
           produto,
-          imagem, // ✅ AGORA VEM IMAGEM REAL
+          imagem,
           status_pedido: order.status,
           valor: order.total_amount,
           data_compra: order.date_created,
-          status_entrega: shipmentResponse?.data?.status || "não informado",
-          transportadora: "Mercado Envios",
-          rastreio: shipmentResponse?.data?.tracking_number || null
+          status_entrega: statusEntrega,
+          transportadora,
+          rastreio
         };
       })
     );
-
-
 
     // 5️⃣ Filtro
     if (statusFiltro) {
@@ -286,13 +292,14 @@ app.get("/entregas", async (req, res) => {
     res.json(entregas);
 
   } catch (err) {
-    console.error("Erro em /entregas:", err.message);
+    console.error("❌ ERRO /entregas:", err);
     res.status(500).json({
       error: "Erro ao buscar entregas",
       details: err.message
     });
   }
 });
+
 
 
 
