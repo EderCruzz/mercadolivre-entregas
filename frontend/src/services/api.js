@@ -1,5 +1,7 @@
 import axios from "axios";
 
-export const api = axios.create({
-  baseURL: "https://mercadolivre-entregas.onrender.com"
+const api = axios.create({
+  baseURL: "https://mercadolivre-entregas.onrender.com",
 });
+
+export default api;

@@ -1,0 +1,44 @@
+.card {
+  background: #fff;
+  display: flex;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  align-items: center;
+}
+
+.product-img {
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+}
+
+.info {
+  flex: 1;
+  margin-left: 16px;
+}
+
+.info h3 {
+  margin: 6px 0;
+  font-size: 16px;
+}
+
+.status {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.status.green { color: #00a650; }
+.status.blue { color: #3483fa; }
+.status.gray { color: #666; }
+
+.keyword {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.seller {
+  color: #3483fa;
+  font-weight: bold;
+}
