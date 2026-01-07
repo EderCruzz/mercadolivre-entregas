@@ -225,45 +225,46 @@ app.get("/entregas", async (req, res) => {
       }
     );
 
-    // 4️⃣ Monta entregas + imagem real
+    // 4️⃣ Monta entregas + imagem real via shipment
     let entregas = await Promise.all(
       ordersResponse.data.results.map(async (order) => {
         const orderItem = order.order_items?.[0];
-        const itemId = orderItem?.item?.id;
         const produto = orderItem?.item?.title || "Produto não identificado";
 
         let imagem = null;
 
-        // 🔹 BUSCA IMAGEM REAL DO ITEM
-        if (itemId) {
+        // 🔹 BUSCA IMAGEM PELO SHIPMENT (forma correta)
+        if (order.shipping?.id) {
           try {
-            const itemResponse = await axios.get(
-              `https://api.mercadolibre.com/items/${itemId}`
+            const shipmentResponse = await axios.get(
+              `https://api.mercadolibre.com/shipments/${order.shipping.id}`,
+              {
+                headers: { Authorization: `Bearer ${accessToken}` }
+              }
             );
 
             imagem =
-              itemResponse.data.pictures?.[0]?.url || // 👈 imagem real
-              itemResponse.data.thumbnail ||           // fallback
-              null;
+              shipmentResponse.data.items?.[0]?.picture || null;
 
           } catch (e) {
-            console.warn(`⚠️ Falha ao buscar imagem do item ${itemId}`);
+            console.warn(`⚠️ Falha ao buscar shipment ${order.shipping.id}`);
           }
         }
 
         return {
           pedido_id: order.id,
           produto,
-          imagem, // ✅ agora vem imagem real
+          imagem, // ✅ AGORA VEM IMAGEM REAL
           status_pedido: order.status,
           valor: order.total_amount,
           data_compra: order.date_created,
-          status_entrega: "não informado",
+          status_entrega: shipmentResponse?.data?.status || "não informado",
           transportadora: "Mercado Envios",
-          rastreio: null
+          rastreio: shipmentResponse?.data?.tracking_number || null
         };
       })
     );
+
 
 
     // 5️⃣ Filtro
