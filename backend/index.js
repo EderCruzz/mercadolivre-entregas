@@ -198,10 +198,17 @@ app.get('/ml/orders', async (req, res) => {
 
 app.get("/entregas", async (req, res) => {
   try {
-    const accessToken = await getAccessTokenFromDB();
+    // 1️⃣ Busca token
+    const tokenDoc = await Token.findOne();
+    if (!tokenDoc) {
+      return res.status(401).json({ error: "Token não encontrado" });
+    }
 
-    const response = await axios.get(
-      "https://api.mercadolibre.com/orders/search?buyer=me&sort=date_desc",
+    const accessToken = tokenDoc.access_token;
+
+    // 2️⃣ Descobre o buyerId
+    const userResponse = await axios.get(
+      "https://api.mercadolibre.com/users/me",
       {
         headers: {
           Authorization: `Bearer ${accessToken}`
@@ -209,32 +216,45 @@ app.get("/entregas", async (req, res) => {
       }
     );
 
-    const pedidos = response.data.results.map(order => {
+    const buyerId = userResponse.data.id;
+
+    // 3️⃣ Busca compras
+    const ordersResponse = await axios.get(
+      `https://api.mercadolibre.com/orders/search?buyer=${buyerId}&sort=date_desc`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    // 4️⃣ Mapeia para entregas
+    const entregas = ordersResponse.data.results.map(order => {
       const item = order.order_items?.[0]?.item;
 
       return {
         pedido_id: order.id,
         produto: item?.title || "Produto não identificado",
-        status: order.status,
+        status_pedido: order.status,
         valor: order.total_amount,
         data_compra: order.date_created,
         status_entrega: order.shipping?.status || "não informado",
-        transportadora: order.shipping?.shipping_option?.name || "Mercado Envios",
+        transportadora:
+          order.shipping?.shipping_option?.name || "Mercado Envios",
         rastreio: order.shipping?.tracking_number || null
       };
     });
 
-    res.json(pedidos);
+    res.json(entregas);
 
   } catch (err) {
-    console.error("Erro em /entregas:", err.message);
+    console.error("Erro em /entregas:", err.response?.data || err.message);
     res.status(500).json({
       error: "Erro ao buscar entregas",
-      details: err.message
+      details: err.response?.data || err.message
     });
   }
 });
-
 
 /* =======================
    Server
