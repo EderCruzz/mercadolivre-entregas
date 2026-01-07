@@ -201,22 +201,23 @@ app.get("/entregas", async (req, res) => {
   try {
     const statusFiltro = req.query.status;
 
+    // 1️⃣ Token
     const tokenDoc = await Token.findOne();
     if (!tokenDoc) {
       return res.status(401).json({ error: "Token não encontrado" });
     }
-
     const accessToken = tokenDoc.access_token;
 
+    // 2️⃣ Buyer ID
     const userResponse = await axios.get(
       "https://api.mercadolibre.com/users/me",
       {
         headers: { Authorization: `Bearer ${accessToken}` }
       }
     );
-
     const buyerId = userResponse.data.id;
 
+    // 3️⃣ Compras
     const ordersResponse = await axios.get(
       `https://api.mercadolibre.com/orders/search?buyer=${buyerId}&sort=date_desc`,
       {
@@ -224,66 +225,68 @@ app.get("/entregas", async (req, res) => {
       }
     );
 
-    let entregas = ordersResponse.data.results.map(order => {
-      const item = order.order_items?.[0]?.item;
+    // 4️⃣ Monta entregas
+    let entregas = await Promise.all(
+      ordersResponse.data.results.map(async (order) => {
+        const item = order.order_items?.[0]?.item;
 
-      // 🎯 Heurística realista
-      let statusEntrega = "em processamento";
+        let statusEntrega = "não informado";
+        let rastreio = null;
+        let transportadora = "Mercado Envios";
+        let dataEntrega = null;
 
-      if (order.status === "paid") {
-        const dias = (Date.now() - new Date(order.date_created)) / (1000 * 60 * 60 * 24);
-        statusEntrega = dias > 7 ? "provavelmente entregue" : "em transporte";
-      }
+        if (order.shipping?.id) {
+          try {
+            const shipmentResponse = await axios.get(
+              `https://api.mercadolibre.com/shipments/${order.shipping.id}`,
+              {
+                headers: { Authorization: `Bearer ${accessToken}` }
+              }
+            );
 
-      if (order.status === "cancelled") {
-        statusEntrega = "cancelado";
-      }
+            statusEntrega = shipmentResponse.data.status;
+            rastreio = shipmentResponse.data.tracking_number || null;
+            transportadora =
+              shipmentResponse.data.shipping_option?.name || "Mercado Envios";
+            dataEntrega = shipmentResponse.data.date_delivered || null;
 
-      return {
-        pedido_id: order.id,
+          } catch (e) {
+            console.warn(`⚠️ Falha ao buscar shipment ${order.shipping.id}`);
+          }
+        }
 
-        produto: item?.title || "Produto não identificado",
+        return {
+          pedido_id: order.id,
+          produto: item?.title || "Produto não identificado",
+          imagem: item?.thumbnail || null,
+          vendedor: order.seller?.nickname || "Vendedor",
+          palavra_chave: null,
+          status_pedido: order.status,
+          status_entrega: statusEntrega,
+          data_compra: order.date_created,
+          data_entrega: dataEntrega,
+          transportadora,
+          rastreio,
+          valor: order.total_amount
+        };
+      })
+    );
 
-        imagem:
-          item?.pictures?.[0]?.secure_url ||
-          item?.thumbnail ||
-          null,
-
-        vendedor: order.seller?.nickname || "Vendedor",
-
-        palavra_chave:
-          order.tags?.find(t => t.startsWith("keyword_"))
-            ?.replace("keyword_", "") ||
-          null,
-
-        status_pedido: order.status,
-
-        status_entrega: statusEntrega,
-
-        data_compra: order.date_created,
-
-        data_entrega:
-          shipmentResponse?.data?.date_delivered || null,
-
-        transportadora,
-
-        rastreio,
-
-        valor: order.total_amount
-      };
-    });
-
-    // 🔍 Filtro
+    // 5️⃣ Filtro
     if (statusFiltro) {
       entregas = entregas.filter(e => {
-        if (statusFiltro === "delivered") return e.status_entrega === "provavelmente entregue";
-        if (statusFiltro === "shipped") return e.status_entrega === "em transporte";
-        if (statusFiltro === "not_delivered") return e.status_entrega !== "provavelmente entregue";
+        if (statusFiltro === "delivered") {
+          return e.status_entrega === "delivered";
+        }
+        if (statusFiltro === "shipped") {
+          return ["shipped", "ready_to_ship", "handling"].includes(e.status_entrega);
+        }
+        if (statusFiltro === "not_delivered") {
+          return !["delivered"].includes(e.status_entrega);
+        }
         return true;
       });
     }
-    await Entrega.deleteMany({});
-    await Entrega.insertMany(entregas);
 
     res.json(entregas);
 
@@ -295,6 +298,7 @@ app.get("/entregas", async (req, res) => {
     });
   }
 });
+
 
 app.get("/entregas/cache", async (req, res) => {
   try {
