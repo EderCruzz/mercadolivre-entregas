@@ -225,18 +225,17 @@ app.get("/entregas", async (req, res) => {
       }
     );
 
-    // 4️⃣ Monta entregas (FORMA SEGURA)
+    // 4️⃣ Monta entregas com DATA REAL
     let entregas = await Promise.all(
       ordersResponse.data.results.map(async (order) => {
         const orderItem = order.order_items?.[0];
         const produto = orderItem?.item?.title || "Produto não identificado";
 
-        let imagem = null;
         let statusEntrega = "não informado";
+        let dataEntrega = null;
         let rastreio = null;
         let transportadora = "Mercado Envios";
 
-        // 🔹 Shipment (fonte correta)
         if (order.shipping?.id) {
           try {
             const shipmentResponse = await axios.get(
@@ -246,10 +245,8 @@ app.get("/entregas", async (req, res) => {
               }
             );
 
-            imagem =
-              shipmentResponse.data.items?.[0]?.picture || null;
-
             statusEntrega = shipmentResponse.data.status || statusEntrega;
+            dataEntrega = shipmentResponse.data.delivered_at || null;
             rastreio = shipmentResponse.data.tracking_number || null;
             transportadora =
               shipmentResponse.data.shipping_option?.name || transportadora;
@@ -262,11 +259,11 @@ app.get("/entregas", async (req, res) => {
         return {
           pedido_id: order.id,
           produto,
-          imagem,
           status_pedido: order.status,
           valor: order.total_amount,
           data_compra: order.date_created,
           status_entrega: statusEntrega,
+          data_entrega: dataEntrega, // ✅ DATA REAL
           transportadora,
           rastreio
         };
@@ -283,7 +280,7 @@ app.get("/entregas", async (req, res) => {
           return ["shipped", "ready_to_ship", "handling"].includes(e.status_entrega);
         }
         if (statusFiltro === "not_delivered") {
-          return !["delivered"].includes(e.status_entrega);
+          return e.status_entrega !== "delivered";
         }
         return true;
       });
@@ -299,8 +296,6 @@ app.get("/entregas", async (req, res) => {
     });
   }
 });
-
-
 
 
 app.get("/entregas/cache", async (req, res) => {
