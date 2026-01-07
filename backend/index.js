@@ -2,8 +2,23 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const qs = require('querystring');
+
 const fs = require('fs');
 const path = require('path');
+
+const TOKEN_PATH = path.join(__dirname, 'ml_token.json');
+
+function getToken() {
+  if (!fs.existsSync(TOKEN_PATH)) {
+    throw new Error('Token não encontrado. Faça o login OAuth novamente.');
+  }
+
+  const data = fs.readFileSync(TOKEN_PATH, 'utf-8');
+  const token = JSON.parse(data);
+
+  return token.access_token;
+}
+
 
 const app = express();
 app.use(cors());
@@ -95,20 +110,10 @@ app.get('/oauth/callback', async (req, res) => {
 // BUSCAR PEDIDOS DO MERCADO LIVRE
 app.get('/ml/orders', async (req, res) => {
   try {
-    const tokenPath = path.join(__dirname, 'tokens', 'ml-token.json');
-
-    if (!fs.existsSync(tokenPath)) {
-      return res.status(401).json({
-        error: 'Token não encontrado. Faça o login OAuth novamente.'
-      });
-    }
-
-    const tokenData = JSON.parse(fs.readFileSync(tokenPath, 'utf-8'));
-    const accessToken = tokenData.access_token;
-    const userId = tokenData.user_id;
+    const accessToken = getToken();
 
     const response = await axios.get(
-      `https://api.mercadolibre.com/orders/search?seller=${userId}`,
+      'https://api.mercadolibre.com/orders/search?seller=me',
       {
         headers: {
           Authorization: `Bearer ${accessToken}`
@@ -117,43 +122,39 @@ app.get('/ml/orders', async (req, res) => {
     );
 
     res.json(response.data);
-
   } catch (err) {
-    console.error('❌ ERRO AO BUSCAR PEDIDOS:', err.response?.data || err.message);
+    console.error('Erro ao buscar pedidos:', err.message);
     res.status(500).json({
-      error: 'Erro ao buscar pedidos do Mercado Livre'
+      error: 'Erro ao buscar pedidos do Mercado Livre',
+      details: err.message
     });
   }
 });
+ 
+
 
 app.get('/ml/me', async (req, res) => {
   try {
-    const token = getToken(); // mesma função que você já usa
+    const accessToken = getToken();
 
     const response = await axios.get(
       'https://api.mercadolibre.com/users/me',
       {
         headers: {
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${accessToken}`
         }
       }
     );
 
     res.json(response.data);
-  } catch (error) {
-    console.error(
-      'Erro ao buscar usuário:',
-      error.response?.data || error.message
-    );
-
+  } catch (err) {
+    console.error('Erro ao buscar usuário:', err.message);
     res.status(500).json({
       error: 'Erro ao buscar usuário Mercado Livre',
-      details: error.response?.data || error.message
+      details: err.message
     });
   }
 });
-
-
 
 const PORT = process.env.PORT || 3333;
 
