@@ -286,6 +286,45 @@ app.get("/entregas/cache", async (req, res) => {
   }
 });
 
+app.get("/public/entregas", async (req, res) => {
+  try {
+    const statusFiltro = req.query.status;
+
+    let entregas = await Entrega.find(
+      {},
+      {
+        _id: 0,
+        __v: 0,
+        createdAt: 0,
+        updatedAt: 0
+      }
+    ).sort({ data_compra: -1 });
+
+    // 🔍 Filtro opcional
+    if (statusFiltro) {
+      entregas = entregas.filter(e => {
+        if (statusFiltro === "delivered") {
+          return e.status_entrega === "provavelmente entregue";
+        }
+        if (statusFiltro === "shipped") {
+          return e.status_entrega === "em transporte";
+        }
+        if (statusFiltro === "not_delivered") {
+          return e.status_entrega !== "provavelmente entregue";
+        }
+        return true;
+      });
+    }
+
+    res.json(entregas);
+  } catch (err) {
+    res.status(500).json({
+      error: "Erro ao buscar entregas públicas",
+      details: err.message
+    });
+  }
+});
+
 
 /* =======================
    Server
