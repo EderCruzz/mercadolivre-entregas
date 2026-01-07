@@ -18,6 +18,7 @@ mongoose.connect(process.env.MONGODB_URI)
    Models
 ======================= */
 const Token = require("./src/models/Token");
+const Entrega = require("./src/models/Entrega");
 
 async function getAccessTokenFromDB() {
   const token = await Token.findOne().sort({ createdAt: -1 });
@@ -259,6 +260,8 @@ app.get("/entregas", async (req, res) => {
         return true;
       });
     }
+    await Entrega.deleteMany({});
+    await Entrega.insertMany(entregas);
 
     res.json(entregas);
 
@@ -271,7 +274,17 @@ app.get("/entregas", async (req, res) => {
   }
 });
 
-
+app.get("/entregas/cache", async (req, res) => {
+  try {
+    const entregas = await Entrega.find().sort({ data_compra: -1 });
+    res.json(entregas);
+  } catch (err) {
+    res.status(500).json({
+      error: "Erro ao buscar entregas do cache",
+      details: err.message
+    });
+  }
+});
 
 
 /* =======================
