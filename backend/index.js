@@ -241,13 +241,35 @@ app.get("/entregas", async (req, res) => {
 
       return {
         pedido_id: order.id,
+
         produto: item?.title || "Produto não identificado",
+
+        imagem:
+          item?.pictures?.[0]?.secure_url ||
+          item?.thumbnail ||
+          null,
+
+        vendedor: order.seller?.nickname || "Vendedor",
+
+        palavra_chave:
+          order.tags?.find(t => t.startsWith("keyword_"))
+            ?.replace("keyword_", "") ||
+          null,
+
         status_pedido: order.status,
+
         status_entrega: statusEntrega,
-        valor: order.total_amount,
+
         data_compra: order.date_created,
-        transportadora: "Mercado Envios",
-        rastreio: null
+
+        data_entrega:
+          shipmentResponse?.data?.date_delivered || null,
+
+        transportadora,
+
+        rastreio,
+
+        valor: order.total_amount
       };
     });
 
@@ -288,40 +310,13 @@ app.get("/entregas/cache", async (req, res) => {
 
 app.get("/public/entregas", async (req, res) => {
   try {
-    const statusFiltro = req.query.status;
+    const response = await axios.get(
+      "https://mercadolivre-entregas.onrender.com/entregas"
+    );
 
-    let entregas = await Entrega.find(
-      {},
-      {
-        _id: 0,
-        __v: 0,
-        createdAt: 0,
-        updatedAt: 0
-      }
-    ).sort({ data_compra: -1 });
-
-    // 🔍 Filtro opcional
-    if (statusFiltro) {
-      entregas = entregas.filter(e => {
-        if (statusFiltro === "delivered") {
-          return e.status_entrega === "provavelmente entregue";
-        }
-        if (statusFiltro === "shipped") {
-          return e.status_entrega === "em transporte";
-        }
-        if (statusFiltro === "not_delivered") {
-          return e.status_entrega !== "provavelmente entregue";
-        }
-        return true;
-      });
-    }
-
-    res.json(entregas);
+    res.json(response.data);
   } catch (err) {
-    res.status(500).json({
-      error: "Erro ao buscar entregas públicas",
-      details: err.message
-    });
+    res.status(500).json({ error: "Erro ao buscar entregas públicas" });
   }
 });
 

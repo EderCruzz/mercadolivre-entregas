@@ -1,41 +1,59 @@
-import { useEffect, useState } from 'react';
-import api from './services/api';
+import { useEffect, useState } from "react";
+import axios from "axios";
+import "./index.css";
 
 function App() {
   const [entregas, setEntregas] = useState([]);
 
   useEffect(() => {
-    api.get('/entregas')
-      .then(response => setEntregas(response.data))
-      .catch(() => alert('Backend não conectado'));
+    axios
+      .get("https://mercadolivre-entregas.onrender.com/public/entregas")
+      .then(res => setEntregas(res.data));
   }, []);
 
   return (
-    <div className="container mt-4">
-      <h3>Status de Entregas</h3>
+    <div className="container">
+      <h2>📦 Minhas Compras</h2>
 
-      <table className="table table-striped table-bordered mt-3">
-        <thead className="table-dark">
-          <tr>
-            <th>Item</th>
-            <th>Status</th>
-            <th>Previsão</th>
-            <th>Palavra-chave</th>
-            <th>Rastreio</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entregas.map(entrega => (
-            <tr key={entrega.id}>
-              <td>{entrega.item}</td>
-              <td>{entrega.status}</td>
-              <td>{entrega.previsao}</td>
-              <td>{entrega.palavraChave}</td>
-              <td>{entrega.rastreio}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {entregas.map((e, i) => (
+        <div key={i} className="pedido">
+          {e.imagem && (
+            <img src={e.imagem} alt={e.produto} />
+          )}
+
+          <div className="info">
+            <span className="status ok">
+              {e.status_entrega === "delivered"
+                ? "Entregue"
+                : "Envio no prazo"}
+            </span>
+
+            <h3>{e.produto}</h3>
+
+            <p>
+              Compra em{" "}
+              {new Date(e.data_compra).toLocaleDateString("pt-BR")}
+            </p>
+
+            {e.data_entrega && (
+              <p>
+                Entregue em{" "}
+                {new Date(e.data_entrega).toLocaleDateString("pt-BR")}
+              </p>
+            )}
+
+            {e.palavra_chave && (
+              <p className="keyword">
+                🔑 Palavra-chave: {e.palavra_chave}
+              </p>
+            )}
+          </div>
+
+          <div className="vendedor">
+            <strong>{e.vendedor}</strong>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
