@@ -240,7 +240,12 @@ app.get("/entregas", async (req, res) => {
             const itemResponse = await axios.get(
               `https://api.mercadolibre.com/items/${itemId}`
             );
-            imagem = itemResponse.data.thumbnail;
+
+            imagem =
+              itemResponse.data.pictures?.[0]?.url || // 👈 imagem real
+              itemResponse.data.thumbnail ||           // fallback
+              null;
+
           } catch (e) {
             console.warn(`⚠️ Falha ao buscar imagem do item ${itemId}`);
           }
@@ -249,7 +254,7 @@ app.get("/entregas", async (req, res) => {
         return {
           pedido_id: order.id,
           produto,
-          imagem, // 👈 IMAGEM REAL AQUI
+          imagem, // ✅ agora vem imagem real
           status_pedido: order.status,
           valor: order.total_amount,
           data_compra: order.date_created,
@@ -259,6 +264,7 @@ app.get("/entregas", async (req, res) => {
         };
       })
     );
+
 
     // 5️⃣ Filtro
     if (statusFiltro) {
