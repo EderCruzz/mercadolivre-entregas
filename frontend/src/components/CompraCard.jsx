@@ -1,4 +1,5 @@
 import "./CompraCard.css";
+import noImage from "../assets/no-image.jpg";
 
 export default function CompraCard({ compra }) {
   const {
@@ -25,7 +26,7 @@ export default function CompraCard({ compra }) {
   return (
     <div className="card">
       <img
-        src={imagem || "https://via.placeholder.com/90"}
+        src={imagem || noImage}
         alt={produto}
         className="product-img"
       />
