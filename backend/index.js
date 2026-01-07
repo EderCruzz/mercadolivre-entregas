@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const qs = require('querystring');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -47,8 +49,6 @@ app.get('/oauth/login', (req, res) => {
 });
 
 // CALLBACK OAUTH
-const fs = require('fs');
-const path = require('path');
 
 app.get('/oauth/callback', async (req, res) => {
   const { code } = req.query;
@@ -91,9 +91,6 @@ app.get('/oauth/callback', async (req, res) => {
     res.status(500).send('Erro no OAuth');
   }
 });
-
-const fs = require('fs');
-const path = require('path');
 
 // BUSCAR PEDIDOS DO MERCADO LIVRE
 app.get('/ml/orders', async (req, res) => {
