@@ -200,23 +200,22 @@ app.get("/entregas", async (req, res) => {
   try {
     const statusFiltro = req.query.status;
 
-    // 1️⃣ Token
     const tokenDoc = await Token.findOne();
     if (!tokenDoc) {
       return res.status(401).json({ error: "Token não encontrado" });
     }
+
     const accessToken = tokenDoc.access_token;
 
-    // 2️⃣ Buyer ID
     const userResponse = await axios.get(
       "https://api.mercadolibre.com/users/me",
       {
         headers: { Authorization: `Bearer ${accessToken}` }
       }
     );
+
     const buyerId = userResponse.data.id;
 
-    // 3️⃣ Compras
     const ordersResponse = await axios.get(
       `https://api.mercadolibre.com/orders/search?buyer=${buyerId}&sort=date_desc`,
       {
@@ -224,60 +223,39 @@ app.get("/entregas", async (req, res) => {
       }
     );
 
-    // 4️⃣ Monta entregas com consulta de shipment
-    let entregas = await Promise.all(
-      ordersResponse.data.results.map(async (order) => {
-        const item = order.order_items?.[0]?.item;
+    let entregas = ordersResponse.data.results.map(order => {
+      const item = order.order_items?.[0]?.item;
 
-        let statusEntrega = "não informado";
-        let rastreio = null;
-        let transportadora = "Mercado Envios";
+      // 🎯 Heurística realista
+      let statusEntrega = "em processamento";
 
-        if (order.shipping?.id) {
-          try {
-            const shipmentResponse = await axios.get(
-              `https://api.mercadolibre.com/shipments/${order.shipping.id}`,
-              {
-                headers: { Authorization: `Bearer ${accessToken}` }
-              }
-            );
+      if (order.status === "paid") {
+        const dias = (Date.now() - new Date(order.date_created)) / (1000 * 60 * 60 * 24);
+        statusEntrega = dias > 7 ? "provavelmente entregue" : "em transporte";
+      }
 
-            statusEntrega = shipmentResponse.data.status;
-            rastreio = shipmentResponse.data.tracking_number || null;
-            transportadora =
-              shipmentResponse.data.shipping_option?.name || "Mercado Envios";
-          } catch (e) {
-            console.warn(
-              `⚠️ Falha ao buscar shipment ${order.shipping.id}`
-            );
-          }
-        }
+      if (order.status === "cancelled") {
+        statusEntrega = "cancelado";
+      }
 
-        return {
-          pedido_id: order.id,
-          produto: item?.title || "Produto não identificado",
-          status_pedido: order.status,
-          valor: order.total_amount,
-          data_compra: order.date_created,
-          status_entrega: statusEntrega,
-          transportadora,
-          rastreio
-        };
-      })
-    );
+      return {
+        pedido_id: order.id,
+        produto: item?.title || "Produto não identificado",
+        status_pedido: order.status,
+        status_entrega: statusEntrega,
+        valor: order.total_amount,
+        data_compra: order.date_created,
+        transportadora: "Mercado Envios",
+        rastreio: null
+      };
+    });
 
-    // 5️⃣ Filtro inteligente
+    // 🔍 Filtro
     if (statusFiltro) {
       entregas = entregas.filter(e => {
-        if (statusFiltro === "delivered") {
-          return e.status_entrega === "delivered";
-        }
-        if (statusFiltro === "shipped") {
-          return ["shipped", "ready_to_ship", "handling"].includes(e.status_entrega);
-        }
-        if (statusFiltro === "not_delivered") {
-          return ["pending", "not_delivered"].includes(e.status_entrega);
-        }
+        if (statusFiltro === "delivered") return e.status_entrega === "provavelmente entregue";
+        if (statusFiltro === "shipped") return e.status_entrega === "em transporte";
+        if (statusFiltro === "not_delivered") return e.status_entrega !== "provavelmente entregue";
         return true;
       });
     }
@@ -285,13 +263,14 @@ app.get("/entregas", async (req, res) => {
     res.json(entregas);
 
   } catch (err) {
-    console.error("Erro em /entregas:", err.response?.data || err.message);
+    console.error("Erro em /entregas:", err.message);
     res.status(500).json({
       error: "Erro ao buscar entregas",
-      details: err.response?.data || err.message
+      details: err.message
     });
   }
 });
+
 
 
 
