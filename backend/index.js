@@ -19,6 +19,16 @@ mongoose.connect(process.env.MONGODB_URI)
 ======================= */
 const Token = require("./src/models/Token");
 
+async function getAccessTokenFromDB() {
+  const token = await Token.findOne().sort({ createdAt: -1 });
+
+  if (!token) {
+    throw new Error("Token não encontrado no MongoDB");
+  }
+
+  return token.access_token;
+}
+
 /* =======================
    Middlewares
 ======================= */
@@ -185,6 +195,45 @@ app.get('/ml/orders', async (req, res) => {
   }
 });
 
+
+app.get("/entregas", async (req, res) => {
+  try {
+    const accessToken = await getAccessTokenFromDB();
+
+    const response = await axios.get(
+      "https://api.mercadolibre.com/orders/search?buyer=me&sort=date_desc",
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    const pedidos = response.data.results.map(order => {
+      const item = order.order_items?.[0]?.item;
+
+      return {
+        pedido_id: order.id,
+        produto: item?.title || "Produto não identificado",
+        status: order.status,
+        valor: order.total_amount,
+        data_compra: order.date_created,
+        status_entrega: order.shipping?.status || "não informado",
+        transportadora: order.shipping?.shipping_option?.name || "Mercado Envios",
+        rastreio: order.shipping?.tracking_number || null
+      };
+    });
+
+    res.json(pedidos);
+
+  } catch (err) {
+    console.error("Erro em /entregas:", err.message);
+    res.status(500).json({
+      error: "Erro ao buscar entregas",
+      details: err.message
+    });
+  }
+});
 
 
 /* =======================
