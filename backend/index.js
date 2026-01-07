@@ -25,9 +25,7 @@ const axios = require('axios');
 
 const CLIENT_ID = process.env.ML_CLIENT_ID;
 const CLIENT_SECRET = process.env.ML_CLIENT_SECRET;
-const REDIRECT_URI =
-  'https://unuseful-jordyn-undeliriously.ngrok-free.dev/oauth/callback';
-
+const REDIRECT_URI = 'https://mercadolivre-entregas.onrender.com/oauth/callback';
 
 // TESTE SIMPLES (diagnóstico)
 app.get('/ping', (req, res) => {
