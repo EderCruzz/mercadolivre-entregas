@@ -1,6 +1,8 @@
 .card {
   background: #fff;
-  display: flex;
+  display: grid;
+  grid-template-columns: 100px 1fr 160px;
+  gap: 16px;
   padding: 16px;
   border-radius: 8px;
   margin-bottom: 12px;
@@ -15,13 +17,15 @@
 }
 
 .info {
-  flex: 1;
-  margin-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .info h3 {
-  margin: 6px 0;
+  margin: 0;
   font-size: 16px;
+  line-height: 1.3;
 }
 
 .status {
@@ -34,11 +38,13 @@
 .status.gray { color: #666; }
 
 .keyword {
-  margin-top: 4px;
   font-size: 13px;
+  color: #555;
 }
 
 .seller {
+  text-align: right;
   color: #3483fa;
   font-weight: bold;
+  font-size: 14px;
 }
