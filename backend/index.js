@@ -308,17 +308,36 @@ app.get("/entregas", async (req, res) => {
           image = await buscarImagemGoogle(produto);
         }
 
+        let vendedor = "Mercado Livre";
+
+        const sellerId = item?.seller_id;
+
+        if (sellerId) {
+          try {
+            const sellerResponse = await axios.get(
+              `https://api.mercadolibre.com/users/${sellerId}`
+            );
+            vendedor = sellerResponse.data.nickname;
+          } catch {
+            vendedor = "Mercado Livre";
+          }
+        }
+
+        const quantidade = order.order_items?.[0]?.quantity || 1;
+
         return {
           pedido_id: order.id,
           produto,
           image, // ✅ AGORA SEMPRE VEM (ou fallback no front)
+          quantidade,
           status_pedido: order.status,
           valor: order.total_amount,
           data_compra: order.date_created,
           status_entrega: statusEntrega,
           data_entrega: dataEntrega,
           transportadora,
-          rastreio
+          rastreio,
+          vendedor // ✅ NOVO
         };
       })
     );

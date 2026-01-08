@@ -4,12 +4,12 @@ import noImage from "../assets/no-image.jpg";
 export default function CompraCard({ compra }) {
   const {
     produto,
-    imagem,
+    image,
+    quantidade,
     status_entrega,
     data_compra,
     data_entrega,
     vendedor,
-    palavra_chave,
   } = compra;
 
   const statusMap = {
@@ -26,7 +26,7 @@ export default function CompraCard({ compra }) {
   return (
     <div className="card">
       <img
-        src={imagem || noImage}
+        src={image || noImage}
         alt={produto}
         className="product-img"
       />
@@ -43,22 +43,20 @@ export default function CompraCard({ compra }) {
           {new Date(data_compra).toLocaleDateString("pt-BR")}
         </p>
 
+        <p>
+          Quantidade: <strong>{quantidade}</strong>
+        </p>
+
         {data_entrega && (
           <p>
             Entregue em{" "}
             {new Date(data_entrega).toLocaleDateString("pt-BR")}
           </p>
         )}
-
-        {palavra_chave && (
-          <p className="keyword">
-            Palavra-chave: <strong>{palavra_chave}</strong>
-          </p>
-        )}
       </div>
 
       <div className="seller">
-        {vendedor || "Mercado Livre"}
+        {vendedor}
       </div>
     </div>
   );
