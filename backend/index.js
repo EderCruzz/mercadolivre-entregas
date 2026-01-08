@@ -239,7 +239,7 @@ app.get("/entregas", async (req, res) => {
             api_key: process.env.SERPAPI_KEY,
             ijn: 0 // 👈 obrigatório para imagens
           },
-          timeout: 10000
+          timeout: 20000
         });
 
         const image =
@@ -252,10 +252,14 @@ app.get("/entregas", async (req, res) => {
         return image;
 
       } catch (err) {
-        console.error(
-          "❌ Erro SerpAPI:",
-          err.response?.data || err.message
-        );
+        if (err.code === "ECONNABORTED") {
+          console.warn("⏱️ Timeout ao buscar imagem:", produto);
+        } else {
+          console.error(
+            "❌ Erro SerpAPI:",
+            err.response?.data || err.message
+          );
+        }
         return null;
       }
     }
@@ -290,8 +294,19 @@ app.get("/entregas", async (req, res) => {
           } catch {}
         }
 
-        /* 🖼️ IMAGEM GOOGLE (GARANTIDA) */
-        const image = await buscarImagemGoogle(produto);
+        /* 🖼️ IMAGEM (CACHE → GOOGLE) */
+
+        // tenta reaproveitar imagem já salva no Mongo
+        const cachedEntrega = cache.find(
+          c => c.pedido_id === order.id && c.image
+        );
+
+        let image = cachedEntrega?.image || null;
+
+        // só busca no Google se não existir imagem no cache
+        if (!image) {
+          image = await buscarImagemGoogle(produto);
+        }
 
         return {
           pedido_id: order.id,
