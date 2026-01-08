@@ -19,6 +19,7 @@ mongoose.connect(process.env.MONGODB_URI)
 ======================= */
 const Token = require("./src/models/Token");
 const Entrega = require("./src/models/Entrega");
+const getToken = require("./src/utils/getToken");
 
 const CACHE_TTL = 1000 * 60 * 30; // 30 minutos
 
@@ -37,55 +38,6 @@ async function getAccessTokenFromDB() {
 ======================= */
 app.use(cors());
 app.use(express.json());
-
-/* =======================
-   Utils
-======================= */
-async function getToken() {
-  const token = await Token.findOne().sort({ createdAt: -1 });
-
-  if (!token) {
-    throw new Error("Token não encontrado. Faça login OAuth.");
-  }
-
-  // 🟢 Token ainda válido
-  if (Date.now() < token.expires_at) {
-    return token.access_token;
-  }
-
-  // 🔄 Token expirado → refresh automático
-  console.log("🔄 Token expirado, renovando...");
-
-  try {
-    const response = await axios.post(
-      "https://api.mercadolibre.com/oauth/token",
-      {
-        grant_type: "refresh_token",
-        client_id: process.env.ML_CLIENT_ID,
-        client_secret: process.env.ML_CLIENT_SECRET,
-        refresh_token: token.refresh_token
-      },
-      { headers: { "Content-Type": "application/json" } }
-    );
-
-    const expiresAt = Date.now() + response.data.expires_in * 1000;
-
-    // Atualiza token no Mongo
-    token.access_token = response.data.access_token;
-    token.refresh_token = response.data.refresh_token;
-    token.expires_at = expiresAt;
-    await token.save();
-
-    console.log("✅ Token renovado automaticamente");
-
-    return response.data.access_token;
-
-  } catch (err) {
-    console.error("❌ Erro ao renovar token:", err.response?.data || err.message);
-    throw new Error("Falha ao renovar token. Refaça o login OAuth.");
-  }
-}
-
 
 
 /* =======================
@@ -371,6 +323,8 @@ app.get("/public/entregas", async (req, res) => {
   }
 });
 
+const startCron = require("./src/cron/updateEntregas");
+startCron();
 
 /* =======================
    Server
