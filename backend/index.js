@@ -229,7 +229,6 @@ app.get("/entregas", async (req, res) => {
        3️⃣ FUNÇÃO GOOGLE IMAGES (SERPAPI)
     ======================= */
     async function buscarImagemGoogle(produto) {
-
       console.log("🔍 Buscando imagem para:", produto);
 
       try {
@@ -238,19 +237,29 @@ app.get("/entregas", async (req, res) => {
             engine: "google_images",
             q: produto,
             api_key: process.env.SERPAPI_KEY,
-            num: 1
-          }
+            ijn: 0 // 👈 obrigatório para imagens
+          },
+          timeout: 10000
         });
+
+        const image =
+          response.data.images_results?.[0]?.original ||
+          response.data.images_results?.[0]?.thumbnail ||
+          null;
+
         console.log("🖼️ Imagem encontrada:", image);
 
-        return response.data.images_results?.[0]?.original || null;
+        return image;
 
-        
       } catch (err) {
-        console.warn("⚠️ Falha ao buscar imagem:", produto);
+        console.error(
+          "❌ Erro SerpAPI:",
+          err.response?.data || err.message
+        );
         return null;
       }
     }
+
 
     /* =======================
        4️⃣ MAPEIA ENTREGAS
