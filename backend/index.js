@@ -193,7 +193,9 @@ app.get("/entregas", async (req, res) => {
         if (statusFiltro) {
           entregasCache = entregasCache.filter(e => {
             if (statusFiltro === "delivered") return e.status_entrega === "delivered";
-            if (statusFiltro === "shipped") return ["shipped", "ready_to_ship", "handling"].includes(e.status_entrega);
+            if (statusFiltro === "shipped") {
+              return ["shipped", "ready_to_ship", "handling"].includes(e.status_entrega);
+            }
             if (statusFiltro === "not_delivered") return e.status_entrega !== "delivered";
             return true;
           });
@@ -236,7 +238,7 @@ app.get("/entregas", async (req, res) => {
         let transportadora = "Mercado Envios";
         let image = null;
 
-        // 📦 Shipment
+        /* 📦 SHIPMENT */
         if (order.shipping?.id) {
           try {
             const shipment = await axios.get(
@@ -252,12 +254,12 @@ app.get("/entregas", async (req, res) => {
           } catch {}
         }
 
-        // 🖼️ BUSCA IMAGEM VIA SEARCH API
+        /* 🖼️ BUSCA IMAGEM (SEARCH API MELHORADA) */
         function gerarQueryImagem(titulo) {
           return titulo
             .replace(/[^\w\s]/gi, "")
             .split(" ")
-            .slice(0, 6)
+            .slice(0, 5)
             .join(" ");
         }
 
@@ -269,25 +271,29 @@ app.get("/entregas", async (req, res) => {
             {
               params: {
                 q: queryImagem,
-                limit: 5
+                limit: 10
               }
             }
           );
 
-          const itemComImagem = search.data.results.find(
-            r => r.thumbnail && r.thumbnail.startsWith("http")
-          );
-
-          image = itemComImagem?.thumbnail || null;
-        } catch (e) {
+          for (const r of search.data.results) {
+            if (r.secure_thumbnail) {
+              image = r.secure_thumbnail;
+              break;
+            }
+            if (r.thumbnail) {
+              image = r.thumbnail;
+              break;
+            }
+          }
+        } catch {
           image = null;
         }
-
 
         return {
           pedido_id: order.id,
           produto,
-          image, // 👈 AGORA EXISTE
+          image, // ✅ AGORA FUNCIONAL
           status_pedido: order.status,
           valor: order.total_amount,
           data_compra: order.date_created,
