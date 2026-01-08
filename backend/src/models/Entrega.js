@@ -9,6 +9,7 @@ const EntregaSchema = new mongoose.Schema(
     data_entrega: Date,
     data_compra: Date,
     valor: Number,
+    imagem: String,
     transportadora: String,
     rastreio: String
   },
