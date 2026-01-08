@@ -252,18 +252,25 @@ app.get("/entregas", async (req, res) => {
           } catch {}
         }
 
-        /* 🖼️ IMAGEM REAL DO ITEM (API OFICIAL) */
+        /* 🖼️ IMAGEM REAL DO ITEM (API OFICIAL + AUTH) */
         const itemId = item?.id;
 
         if (itemId) {
           try {
             const itemResponse = await axios.get(
-              `https://api.mercadolibre.com/items/${itemId}`
+              `https://api.mercadolibre.com/items/${itemId}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              }
             );
 
             image =
               itemResponse.data.pictures?.[0]?.secure_url ||
+              itemResponse.data.pictures?.[0]?.url ||
               itemResponse.data.secure_thumbnail ||
+              itemResponse.data.thumbnail ||
               null;
 
           } catch {
