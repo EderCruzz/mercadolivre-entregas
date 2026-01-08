@@ -229,6 +229,9 @@ app.get("/entregas", async (req, res) => {
        3️⃣ FUNÇÃO GOOGLE IMAGES (SERPAPI)
     ======================= */
     async function buscarImagemGoogle(produto) {
+
+      console.log("🔍 Buscando imagem para:", produto);
+
       try {
         const response = await axios.get("https://serpapi.com/search.json", {
           params: {
@@ -238,9 +241,11 @@ app.get("/entregas", async (req, res) => {
             num: 1
           }
         });
+        console.log("🖼️ Imagem encontrada:", image);
 
         return response.data.images_results?.[0]?.original || null;
 
+        
       } catch (err) {
         console.warn("⚠️ Falha ao buscar imagem:", produto);
         return null;
