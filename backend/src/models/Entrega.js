@@ -5,7 +5,10 @@ const EntregaSchema = new mongoose.Schema(
     pedido_id: Number,
     produto: String,
 
-    image: String, // ✅ CAMPO QUE FALTAVA
+    image: {
+      type: String,
+      default: null
+    },
 
     status_pedido: String,
     status_entrega: String,

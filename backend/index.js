@@ -293,7 +293,7 @@ app.get("/entregas", async (req, res) => {
         return {
           pedido_id: order.id,
           produto,
-          image, // ✅ AGORA FUNCIONAL
+          image: image ?? null, // 🔒 força existir
           status_pedido: order.status,
           valor: order.total_amount,
           data_compra: order.date_created,
