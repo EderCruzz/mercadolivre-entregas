@@ -304,18 +304,10 @@ app.get("/entregas", async (req, res) => {
           image = await buscarImagemGoogle(produto);
         }
 
-        /* ✅ VENDEDOR (CORREÇÃO) */
-        let vendedor = "Mercado Livre";
-        const sellerId = item?.seller_id;
+        const vendedor =
+          order.order_items?.[0]?.seller?.nickname ||
+          "Mercado Livre";
 
-        if (sellerId) {
-          try {
-            const sellerResponse = await axios.get(
-              `https://api.mercadolibre.com/users/${sellerId}`
-            );
-            vendedor = sellerResponse.data.nickname;
-          } catch {}
-        }
 
         return {
           pedido_id: order.id,
