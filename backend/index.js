@@ -172,6 +172,9 @@ app.get('/ml/orders', async (req, res) => {
 });
 
 app.get("/entregas", async (req, res) => {
+
+  console.log("🔑 SERPAPI_KEY:", process.env.SERPAPI_KEY);
+
   try {
     const statusFiltro = req.query.status;
 
