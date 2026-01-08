@@ -252,30 +252,13 @@ app.get("/entregas", async (req, res) => {
           } catch {}
         }
 
-        /* 🖼️ IMAGEM REAL DO ITEM (API OFICIAL + AUTH) */
-        const itemId = item?.id;
+        /* 🖼️ IMAGEM REAL DO PRODUTO (OFICIAL ML) */
+        const thumbnailId = item?.thumbnail_id;
 
-        if (itemId) {
-          try {
-            const itemResponse = await axios.get(
-              `https://api.mercadolibre.com/items/${itemId}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${accessToken}`
-                }
-              }
-            );
-
-            image =
-              itemResponse.data.pictures?.[0]?.secure_url ||
-              itemResponse.data.pictures?.[0]?.url ||
-              itemResponse.data.secure_thumbnail ||
-              itemResponse.data.thumbnail ||
-              null;
-
-          } catch {
-            image = null;
-          }
+        if (thumbnailId) {
+          image = `https://http2.mlstatic.com/D_NQ_NP_${thumbnailId}-F.jpg`;
+        } else {
+          image = null;
         }
 
         return {
