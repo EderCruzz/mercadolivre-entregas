@@ -2,12 +2,13 @@ const mongoose = require("mongoose");
 
 const EntregaSchema = new mongoose.Schema(
   {
-    pedido_id: Number,
+    pedido_id: { type: Number, unique: true },
     produto: String,
     status_pedido: String,
     status_entrega: String,
-    valor: Number,
+    data_entrega: Date,
     data_compra: Date,
+    valor: Number,
     transportadora: String,
     rastreio: String
   },

@@ -20,6 +20,8 @@ mongoose.connect(process.env.MONGODB_URI)
 const Token = require("./src/models/Token");
 const Entrega = require("./src/models/Entrega");
 
+const CACHE_TTL = 1000 * 60 * 30; // 30 minutos
+
 async function getAccessTokenFromDB() {
   const token = await Token.findOne().sort({ createdAt: -1 });
 
@@ -217,15 +219,44 @@ app.get('/ml/orders', async (req, res) => {
 });
 
 
-
 app.get("/entregas", async (req, res) => {
   try {
     const statusFiltro = req.query.status;
 
-    // ✅ SEMPRE usar getToken (auto-refresh)
+    /* =======================
+       1️⃣ VERIFICA CACHE
+    ======================= */
+    const cache = await Entrega.find().sort({ data_compra: -1 });
+
+    if (cache.length > 0) {
+      const cacheAge = Date.now() - new Date(cache[0].updatedAt).getTime();
+
+      if (cacheAge < CACHE_TTL) {
+        console.log("📦 Cache válido, retornando MongoDB");
+
+        let entregasCache = cache;
+
+        // 🔍 filtro no cache
+        if (statusFiltro) {
+          entregasCache = entregasCache.filter(e => {
+            if (statusFiltro === "delivered") return e.status_entrega === "delivered";
+            if (statusFiltro === "shipped") return ["shipped", "ready_to_ship", "handling"].includes(e.status_entrega);
+            if (statusFiltro === "not_delivered") return e.status_entrega !== "delivered";
+            return true;
+          });
+        }
+
+        return res.json(entregasCache);
+      }
+    }
+
+    console.log("🌐 Cache vencido ou vazio, buscando na API");
+
+    /* =======================
+       2️⃣ BUSCA API
+    ======================= */
     const accessToken = await getToken();
 
-    // Buyer ID
     const userResponse = await axios.get(
       "https://api.mercadolibre.com/users/me",
       {
@@ -234,7 +265,6 @@ app.get("/entregas", async (req, res) => {
     );
     const buyerId = userResponse.data.id;
 
-    // Compras
     const ordersResponse = await axios.get(
       `https://api.mercadolibre.com/orders/search?buyer=${buyerId}&sort=date_desc`,
       {
@@ -244,8 +274,7 @@ app.get("/entregas", async (req, res) => {
 
     let entregas = await Promise.all(
       ordersResponse.data.results.map(async (order) => {
-        const orderItem = order.order_items?.[0];
-        const produto = orderItem?.item?.title || "Produto não identificado";
+        const item = order.order_items?.[0]?.item;
 
         let statusEntrega = "não informado";
         let dataEntrega = null;
@@ -267,14 +296,14 @@ app.get("/entregas", async (req, res) => {
             transportadora =
               shipmentResponse.data.shipping_option?.name || transportadora;
 
-          } catch (e) {
-            console.warn(`⚠️ Falha ao buscar shipment ${order.shipping.id}`);
+          } catch {
+            // silêncio proposital
           }
         }
 
         return {
           pedido_id: order.id,
-          produto,
+          produto: item?.title || "Produto não identificado",
           status_pedido: order.status,
           valor: order.total_amount,
           data_compra: order.date_created,
@@ -286,7 +315,17 @@ app.get("/entregas", async (req, res) => {
       })
     );
 
-    // Filtro
+    /* =======================
+       3️⃣ ATUALIZA CACHE
+    ======================= */
+    await Entrega.deleteMany({});
+    await Entrega.insertMany(entregas);
+
+    console.log("💾 Cache atualizado no MongoDB");
+
+    /* =======================
+       4️⃣ FILTRO FINAL
+    ======================= */
     if (statusFiltro) {
       entregas = entregas.filter(e => {
         if (statusFiltro === "delivered") return e.status_entrega === "delivered";
@@ -308,7 +347,6 @@ app.get("/entregas", async (req, res) => {
 });
 
 
-
 app.get("/entregas/cache", async (req, res) => {
   try {
     const entregas = await Entrega.find().sort({ data_compra: -1 });
@@ -323,13 +361,13 @@ app.get("/entregas/cache", async (req, res) => {
 
 app.get("/public/entregas", async (req, res) => {
   try {
-    const response = await axios.get(
-      "https://mercadolivre-entregas.onrender.com/entregas"
-    );
-
-    res.json(response.data);
+    const entregas = await Entrega.find().sort({ data_compra: -1 });
+    res.json(entregas);
   } catch (err) {
-    res.status(500).json({ error: "Erro ao buscar entregas públicas" });
+    res.status(500).json({
+      error: "Erro ao buscar entregas públicas",
+      details: err.message
+    });
   }
 });
 
