@@ -237,41 +237,40 @@ app.get("/entregas", async (req, res) => {
             engine: "google_images",
             q: produto,
             api_key: process.env.SERPAPI_KEY,
-            ijn: 0 // 👈 obrigatório para imagens
+            ijn: 0
           },
           timeout: 20000
         });
 
-        const image =
+        return (
           response.data.images_results?.[0]?.original ||
           response.data.images_results?.[0]?.thumbnail ||
-          null;
-
-        console.log("🖼️ Imagem encontrada:", image);
-
-        return image;
+          null
+        );
 
       } catch (err) {
         if (err.code === "ECONNABORTED") {
           console.warn("⏱️ Timeout ao buscar imagem:", produto);
         } else {
-          console.error(
-            "❌ Erro SerpAPI:",
-            err.response?.data || err.message
-          );
+          console.error("❌ Erro SerpAPI:", err.response?.data || err.message);
         }
         return null;
       }
     }
-
 
     /* =======================
        4️⃣ MAPEIA ENTREGAS
     ======================= */
     const entregas = await Promise.all(
       ordersResponse.data.results.map(async (order) => {
-        const item = order.order_items?.[0]?.item;
+
+        const orderItem = order.order_items?.[0];
+        const item = orderItem?.item;
+
         const produto = item?.title || "Produto não identificado";
+
+        /* ✅ QUANTIDADE (CORREÇÃO) */
+        const quantidade = orderItem?.quantity ?? 1;
 
         let statusEntrega = "não informado";
         let dataEntrega = null;
@@ -295,21 +294,18 @@ app.get("/entregas", async (req, res) => {
         }
 
         /* 🖼️ IMAGEM (CACHE → GOOGLE) */
-
-        // tenta reaproveitar imagem já salva no Mongo
         const cachedEntrega = cache.find(
           c => c.pedido_id === order.id && c.image
         );
 
         let image = cachedEntrega?.image || null;
 
-        // só busca no Google se não existir imagem no cache
         if (!image) {
           image = await buscarImagemGoogle(produto);
         }
 
+        /* ✅ VENDEDOR (CORREÇÃO) */
         let vendedor = "Mercado Livre";
-
         const sellerId = item?.seller_id;
 
         if (sellerId) {
@@ -318,26 +314,22 @@ app.get("/entregas", async (req, res) => {
               `https://api.mercadolibre.com/users/${sellerId}`
             );
             vendedor = sellerResponse.data.nickname;
-          } catch {
-            vendedor = "Mercado Livre";
-          }
+          } catch {}
         }
-
-        const quantidade = order.order_items?.[0]?.quantity || 1;
 
         return {
           pedido_id: order.id,
           produto,
-          image, // ✅ AGORA SEMPRE VEM (ou fallback no front)
-          quantidade,
+          image,
+          quantidade,          // ✅ AGORA FUNCIONA
+          vendedor,            // ✅ AGORA FUNCIONA
           status_pedido: order.status,
           valor: order.total_amount,
           data_compra: order.date_created,
           status_entrega: statusEntrega,
           data_entrega: dataEntrega,
           transportadora,
-          rastreio,
-          vendedor // ✅ NOVO
+          rastreio
         };
       })
     );
@@ -348,7 +340,7 @@ app.get("/entregas", async (req, res) => {
     await Entrega.deleteMany({});
     await Entrega.insertMany(entregas);
 
-    console.log("💾 Cache atualizado com imagens do Google");
+    console.log("💾 Cache atualizado com imagens, vendedor e quantidade");
 
     res.json(entregas);
 
