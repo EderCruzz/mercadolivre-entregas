@@ -43,15 +43,47 @@ async function getToken() {
   const token = await Token.findOne().sort({ createdAt: -1 });
 
   if (!token) {
-    throw new Error("Token não encontrado. Faça o login OAuth novamente.");
+    throw new Error("Token não encontrado. Faça login OAuth.");
   }
 
-  if (Date.now() > token.expires_at) {
-    throw new Error("Token expirado. Faça o login OAuth novamente.");
+  // 🟢 Token ainda válido
+  if (Date.now() < token.expires_at) {
+    return token.access_token;
   }
 
-  return token.access_token;
+  // 🔄 Token expirado → refresh automático
+  console.log("🔄 Token expirado, renovando...");
+
+  try {
+    const response = await axios.post(
+      "https://api.mercadolibre.com/oauth/token",
+      {
+        grant_type: "refresh_token",
+        client_id: process.env.ML_CLIENT_ID,
+        client_secret: process.env.ML_CLIENT_SECRET,
+        refresh_token: token.refresh_token
+      },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    const expiresAt = Date.now() + response.data.expires_in * 1000;
+
+    // Atualiza token no Mongo
+    token.access_token = response.data.access_token;
+    token.refresh_token = response.data.refresh_token;
+    token.expires_at = expiresAt;
+    await token.save();
+
+    console.log("✅ Token renovado automaticamente");
+
+    return response.data.access_token;
+
+  } catch (err) {
+    console.error("❌ Erro ao renovar token:", err.response?.data || err.message);
+    throw new Error("Falha ao renovar token. Refaça o login OAuth.");
+  }
 }
+
 
 
 /* =======================
@@ -155,33 +187,21 @@ app.get("/ml/me", async (req, res) => {
 ======================= */
 app.get('/ml/orders', async (req, res) => {
   try {
-    // 1️⃣ Busca token no MongoDB
-    const tokenDoc = await Token.findOne();
-    if (!tokenDoc) {
-      return res.status(401).json({ error: 'Token não encontrado' });
-    }
+    const accessToken = await getToken();
 
-    const accessToken = tokenDoc.access_token;
-
-    // 2️⃣ Descobre quem é o usuário (buyer)
     const userResponse = await axios.get(
       'https://api.mercadolibre.com/users/me',
       {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
+        headers: { Authorization: `Bearer ${accessToken}` }
       }
     );
 
     const buyerId = userResponse.data.id;
 
-    // 3️⃣ Busca COMPRAS (orders como comprador)
     const ordersResponse = await axios.get(
       `https://api.mercadolibre.com/orders/search?buyer=${buyerId}`,
       {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
+        headers: { Authorization: `Bearer ${accessToken}` }
       }
     );
 
@@ -191,24 +211,21 @@ app.get('/ml/orders', async (req, res) => {
     console.error('Erro ao buscar compras:', err.response?.data || err.message);
     res.status(500).json({
       error: 'Erro ao buscar compras do Mercado Livre',
-      details: err.response?.data || err.message
+      details: err.message
     });
   }
 });
+
 
 
 app.get("/entregas", async (req, res) => {
   try {
     const statusFiltro = req.query.status;
 
-    // 1️⃣ Token
-    const tokenDoc = await Token.findOne();
-    if (!tokenDoc) {
-      return res.status(401).json({ error: "Token não encontrado" });
-    }
-    const accessToken = tokenDoc.access_token;
+    // ✅ SEMPRE usar getToken (auto-refresh)
+    const accessToken = await getToken();
 
-    // 2️⃣ Buyer ID
+    // Buyer ID
     const userResponse = await axios.get(
       "https://api.mercadolibre.com/users/me",
       {
@@ -217,7 +234,7 @@ app.get("/entregas", async (req, res) => {
     );
     const buyerId = userResponse.data.id;
 
-    // 3️⃣ Compras
+    // Compras
     const ordersResponse = await axios.get(
       `https://api.mercadolibre.com/orders/search?buyer=${buyerId}&sort=date_desc`,
       {
@@ -225,7 +242,6 @@ app.get("/entregas", async (req, res) => {
       }
     );
 
-    // 4️⃣ Monta entregas com DATA REAL
     let entregas = await Promise.all(
       ordersResponse.data.results.map(async (order) => {
         const orderItem = order.order_items?.[0];
@@ -263,25 +279,19 @@ app.get("/entregas", async (req, res) => {
           valor: order.total_amount,
           data_compra: order.date_created,
           status_entrega: statusEntrega,
-          data_entrega: dataEntrega, // ✅ DATA REAL
+          data_entrega: dataEntrega,
           transportadora,
           rastreio
         };
       })
     );
 
-    // 5️⃣ Filtro
+    // Filtro
     if (statusFiltro) {
       entregas = entregas.filter(e => {
-        if (statusFiltro === "delivered") {
-          return e.status_entrega === "delivered";
-        }
-        if (statusFiltro === "shipped") {
-          return ["shipped", "ready_to_ship", "handling"].includes(e.status_entrega);
-        }
-        if (statusFiltro === "not_delivered") {
-          return e.status_entrega !== "delivered";
-        }
+        if (statusFiltro === "delivered") return e.status_entrega === "delivered";
+        if (statusFiltro === "shipped") return ["shipped", "ready_to_ship", "handling"].includes(e.status_entrega);
+        if (statusFiltro === "not_delivered") return e.status_entrega !== "delivered";
         return true;
       });
     }
@@ -289,13 +299,14 @@ app.get("/entregas", async (req, res) => {
     res.json(entregas);
 
   } catch (err) {
-    console.error("❌ ERRO /entregas:", err);
+    console.error("❌ ERRO /entregas:", err.response?.data || err.message);
     res.status(500).json({
       error: "Erro ao buscar entregas",
       details: err.message
     });
   }
 });
+
 
 
 app.get("/entregas/cache", async (req, res) => {
