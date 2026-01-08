@@ -206,7 +206,7 @@ app.get("/entregas", async (req, res) => {
     console.log("🌐 Cache vencido, buscando na API");
 
     /* =======================
-       2️⃣ TOKEN + USUÁRIO
+       2️⃣ TOKEN + PEDIDOS
     ======================= */
     const accessToken = await getToken();
 
@@ -223,7 +223,29 @@ app.get("/entregas", async (req, res) => {
     );
 
     /* =======================
-       3️⃣ MAPEIA ENTREGAS + GOOGLE IMAGES
+       3️⃣ FUNÇÃO GOOGLE IMAGES (SERPAPI)
+    ======================= */
+    async function buscarImagemGoogle(produto) {
+      try {
+        const response = await axios.get("https://serpapi.com/search.json", {
+          params: {
+            engine: "google_images",
+            q: produto,
+            api_key: process.env.SERPAPI_KEY,
+            num: 1
+          }
+        });
+
+        return response.data.images_results?.[0]?.original || null;
+
+      } catch (err) {
+        console.warn("⚠️ Falha ao buscar imagem:", produto);
+        return null;
+      }
+    }
+
+    /* =======================
+       4️⃣ MAPEIA ENTREGAS
     ======================= */
     const entregas = await Promise.all(
       ordersResponse.data.results.map(async (order) => {
@@ -234,7 +256,6 @@ app.get("/entregas", async (req, res) => {
         let dataEntrega = null;
         let rastreio = null;
         let transportadora = "Mercado Envios";
-        let image = null;
 
         /* 📦 SHIPMENT */
         if (order.shipping?.id) {
@@ -252,34 +273,13 @@ app.get("/entregas", async (req, res) => {
           } catch {}
         }
 
-        /* 🖼️ GOOGLE IMAGES (SerpAPI) */
-        try {
-          const serpResponse = await axios.get(
-            "https://serpapi.com/search.json",
-            {
-              params: {
-                q: produto,
-                tbm: "isch",
-                num: 1,
-                api_key: process.env.SERPAPI_KEY
-              }
-            }
-          );
-
-          image =
-            serpResponse.data.images_results?.[0]?.original ||
-            serpResponse.data.images_results?.[0]?.thumbnail ||
-            null;
-
-        } catch (err) {
-          console.warn("⚠️ Falha ao buscar imagem:", produto);
-          image = null;
-        }
+        /* 🖼️ IMAGEM GOOGLE (GARANTIDA) */
+        const image = await buscarImagemGoogle(produto);
 
         return {
           pedido_id: order.id,
           produto,
-          image: image ?? null, // 🔒 sempre presente
+          image, // ✅ AGORA SEMPRE VEM (ou fallback no front)
           status_pedido: order.status,
           valor: order.total_amount,
           data_compra: order.date_created,
@@ -292,7 +292,7 @@ app.get("/entregas", async (req, res) => {
     );
 
     /* =======================
-       4️⃣ ATUALIZA CACHE
+       5️⃣ ATUALIZA CACHE
     ======================= */
     await Entrega.deleteMany({});
     await Entrega.insertMany(entregas);
@@ -302,7 +302,7 @@ app.get("/entregas", async (req, res) => {
     res.json(entregas);
 
   } catch (err) {
-    console.error("❌ ERRO /entregas:", err.response?.data || err.message);
+    console.error("❌ ERRO /entregas:", err.message);
     res.status(500).json({
       error: "Erro ao buscar entregas",
       details: err.message
