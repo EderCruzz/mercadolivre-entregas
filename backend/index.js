@@ -253,13 +253,36 @@ app.get("/entregas", async (req, res) => {
         }
 
         // 🖼️ BUSCA IMAGEM VIA SEARCH API
+        function gerarQueryImagem(titulo) {
+          return titulo
+            .replace(/[^\w\s]/gi, "")
+            .split(" ")
+            .slice(0, 6)
+            .join(" ");
+        }
+
+        const queryImagem = gerarQueryImagem(produto);
+
         try {
           const search = await axios.get(
-            `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(produto)}&limit=1`
+            "https://api.mercadolibre.com/sites/MLB/search",
+            {
+              params: {
+                q: queryImagem,
+                limit: 5
+              }
+            }
           );
 
-          image = search.data.results?.[0]?.thumbnail || null;
-        } catch {}
+          const itemComImagem = search.data.results.find(
+            r => r.thumbnail && r.thumbnail.startsWith("http")
+          );
+
+          image = itemComImagem?.thumbnail || null;
+        } catch (e) {
+          image = null;
+        }
+
 
         return {
           pedido_id: order.id,
