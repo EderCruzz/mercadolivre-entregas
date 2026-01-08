@@ -223,7 +223,7 @@ app.get("/entregas", async (req, res) => {
     );
 
     /* =======================
-       3️⃣ MAPEIA ENTREGAS + IMAGEM REAL
+       3️⃣ MAPEIA ENTREGAS + GOOGLE IMAGES
     ======================= */
     const entregas = await Promise.all(
       ordersResponse.data.results.map(async (order) => {
@@ -252,19 +252,34 @@ app.get("/entregas", async (req, res) => {
           } catch {}
         }
 
-        /* 🖼️ IMAGEM REAL DO PRODUTO (OFICIAL ML) */
-        const thumbnailId = item?.thumbnail_id;
+        /* 🖼️ GOOGLE IMAGES (SerpAPI) */
+        try {
+          const serpResponse = await axios.get(
+            "https://serpapi.com/search.json",
+            {
+              params: {
+                q: produto,
+                tbm: "isch",
+                num: 1,
+                api_key: process.env.SERPAPI_KEY
+              }
+            }
+          );
 
-        if (thumbnailId) {
-          image = `https://http2.mlstatic.com/D_NQ_NP_${thumbnailId}-F.jpg`;
-        } else {
+          image =
+            serpResponse.data.images_results?.[0]?.original ||
+            serpResponse.data.images_results?.[0]?.thumbnail ||
+            null;
+
+        } catch (err) {
+          console.warn("⚠️ Falha ao buscar imagem:", produto);
           image = null;
         }
 
         return {
           pedido_id: order.id,
           produto,
-          image: image ?? null, // 🔒 sempre existe
+          image: image ?? null, // 🔒 sempre presente
           status_pedido: order.status,
           valor: order.total_amount,
           data_compra: order.date_created,
@@ -282,7 +297,7 @@ app.get("/entregas", async (req, res) => {
     await Entrega.deleteMany({});
     await Entrega.insertMany(entregas);
 
-    console.log("💾 Cache atualizado com imagem real");
+    console.log("💾 Cache atualizado com imagens do Google");
 
     res.json(entregas);
 
