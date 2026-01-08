@@ -203,78 +203,68 @@ app.get("/entregas", async (req, res) => {
       }
     }
 
-    console.log("🌐 Cache vencido ou vazio, buscando na API");
+    console.log("🌐 Cache vencido, buscando na API");
 
     /* =======================
-       2️⃣ BUSCA API
+       2️⃣ TOKEN + USUÁRIO
     ======================= */
     const accessToken = await getToken();
 
     const userResponse = await axios.get(
       "https://api.mercadolibre.com/users/me",
-      {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      }
+      { headers: { Authorization: `Bearer ${accessToken}` } }
     );
+
     const buyerId = userResponse.data.id;
 
     const ordersResponse = await axios.get(
       `https://api.mercadolibre.com/orders/search?buyer=${buyerId}&sort=date_desc`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      }
+      { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
     /* =======================
-       3️⃣ MONTA ENTREGAS + IMAGEM
+       3️⃣ MAPEIA ENTREGAS + IMAGEM
     ======================= */
-    let entregas = await Promise.all(
+    const entregas = await Promise.all(
       ordersResponse.data.results.map(async (order) => {
-        const orderItem = order.order_items?.[0];
-        const produto = orderItem?.item?.title || "Produto não identificado";
+        const item = order.order_items?.[0]?.item;
+        const produto = item?.title || "Produto não identificado";
 
         let statusEntrega = "não informado";
         let dataEntrega = null;
         let rastreio = null;
         let transportadora = "Mercado Envios";
-        let imagem = null;
+        let image = null;
 
-        // 🚚 Shipment
+        // 📦 Shipment
         if (order.shipping?.id) {
           try {
-            const shipmentResponse = await axios.get(
+            const shipment = await axios.get(
               `https://api.mercadolibre.com/shipments/${order.shipping.id}`,
-              {
-                headers: { Authorization: `Bearer ${accessToken}` }
-              }
+              { headers: { Authorization: `Bearer ${accessToken}` } }
             );
 
-            statusEntrega = shipmentResponse.data.status || statusEntrega;
-            dataEntrega = shipmentResponse.data.delivered_at || null;
-            rastreio = shipmentResponse.data.tracking_number || null;
+            statusEntrega = shipment.data.status || statusEntrega;
+            dataEntrega = shipment.data.delivered_at || null;
+            rastreio = shipment.data.tracking_number || null;
             transportadora =
-              shipmentResponse.data.shipping_option?.name || transportadora;
-
-          } catch {
-            // ignora falha individual
-          }
+              shipment.data.shipping_option?.name || transportadora;
+          } catch {}
         }
 
-        // 🖼️ IMAGEM (usa cache se existir)
-        const entregaExistente = await Entrega.findOne({
-          pedido_id: order.id
-        });
+        // 🖼️ BUSCA IMAGEM VIA SEARCH API
+        try {
+          const search = await axios.get(
+            `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(produto)}&limit=1`
+          );
 
-        if (entregaExistente?.imagem) {
-          imagem = entregaExistente.imagem;
-        } else {
-          imagem = await getItemImageBySearch(produto);
-        }
+          image = search.data.results?.[0]?.thumbnail || null;
+        } catch {}
 
         return {
           pedido_id: order.id,
           produto,
-          imagem,
+          image, // 👈 AGORA EXISTE
           status_pedido: order.status,
           valor: order.total_amount,
           data_compra: order.date_created,
@@ -292,19 +282,7 @@ app.get("/entregas", async (req, res) => {
     await Entrega.deleteMany({});
     await Entrega.insertMany(entregas);
 
-    console.log("💾 Cache atualizado no MongoDB");
-
-    /* =======================
-       5️⃣ FILTRO FINAL
-    ======================= */
-    if (statusFiltro) {
-      entregas = entregas.filter(e => {
-        if (statusFiltro === "delivered") return e.status_entrega === "delivered";
-        if (statusFiltro === "shipped") return ["shipped", "ready_to_ship", "handling"].includes(e.status_entrega);
-        if (statusFiltro === "not_delivered") return e.status_entrega !== "delivered";
-        return true;
-      });
-    }
+    console.log("💾 Cache atualizado com imagem");
 
     res.json(entregas);
 
@@ -316,6 +294,7 @@ app.get("/entregas", async (req, res) => {
     });
   }
 });
+
 
 
 app.get("/entregas/cache", async (req, res) => {
