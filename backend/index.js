@@ -20,7 +20,6 @@ mongoose.connect(process.env.MONGODB_URI)
 const Token = require("./src/models/Token");
 const Entrega = require("./src/models/Entrega");
 const getToken = require("./src/utils/getToken");
-const getItemImageBySearch = require("./src/utils/getItemImageBySearch");
 
 
 const CACHE_TTL = 1000 * 60 * 30; // 30 minutos
@@ -172,7 +171,6 @@ app.get('/ml/orders', async (req, res) => {
   }
 });
 
-
 app.get("/entregas", async (req, res) => {
   try {
     const statusFiltro = req.query.status;
@@ -225,7 +223,7 @@ app.get("/entregas", async (req, res) => {
     );
 
     /* =======================
-       3️⃣ MAPEIA ENTREGAS + IMAGEM
+       3️⃣ MAPEIA ENTREGAS + IMAGEM REAL
     ======================= */
     const entregas = await Promise.all(
       ordersResponse.data.results.map(async (order) => {
@@ -254,46 +252,29 @@ app.get("/entregas", async (req, res) => {
           } catch {}
         }
 
-        /* 🖼️ BUSCA IMAGEM (SEARCH API MELHORADA) */
-        function gerarQueryImagem(titulo) {
-          return titulo
-            .replace(/[^\w\s]/gi, "")
-            .split(" ")
-            .slice(0, 5)
-            .join(" ");
-        }
+        /* 🖼️ IMAGEM REAL DO ITEM (API OFICIAL) */
+        const itemId = item?.id;
 
-        const queryImagem = gerarQueryImagem(produto);
+        if (itemId) {
+          try {
+            const itemResponse = await axios.get(
+              `https://api.mercadolibre.com/items/${itemId}`
+            );
 
-        try {
-          const search = await axios.get(
-            "https://api.mercadolibre.com/sites/MLB/search",
-            {
-              params: {
-                q: queryImagem,
-                limit: 10
-              }
-            }
-          );
+            image =
+              itemResponse.data.pictures?.[0]?.secure_url ||
+              itemResponse.data.secure_thumbnail ||
+              null;
 
-          for (const r of search.data.results) {
-            if (r.secure_thumbnail) {
-              image = r.secure_thumbnail;
-              break;
-            }
-            if (r.thumbnail) {
-              image = r.thumbnail;
-              break;
-            }
+          } catch {
+            image = null;
           }
-        } catch {
-          image = null;
         }
 
         return {
           pedido_id: order.id,
           produto,
-          image: image ?? null, // 🔒 força existir
+          image: image ?? null, // 🔒 sempre existe
           status_pedido: order.status,
           valor: order.total_amount,
           data_compra: order.date_created,
@@ -311,7 +292,7 @@ app.get("/entregas", async (req, res) => {
     await Entrega.deleteMany({});
     await Entrega.insertMany(entregas);
 
-    console.log("💾 Cache atualizado com imagem");
+    console.log("💾 Cache atualizado com imagem real");
 
     res.json(entregas);
 
@@ -323,7 +304,6 @@ app.get("/entregas", async (req, res) => {
     });
   }
 });
-
 
 
 app.get("/entregas/cache", async (req, res) => {
