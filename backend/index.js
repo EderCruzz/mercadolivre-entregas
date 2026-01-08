@@ -20,6 +20,8 @@ mongoose.connect(process.env.MONGODB_URI)
 const Token = require("./src/models/Token");
 const Entrega = require("./src/models/Entrega");
 const getToken = require("./src/utils/getToken");
+const getItemImageBySearch = require("./src/utils/getItemImageBySearch");
+
 
 const CACHE_TTL = 1000 * 60 * 30; // 30 minutos
 
@@ -188,7 +190,6 @@ app.get("/entregas", async (req, res) => {
 
         let entregasCache = cache;
 
-        // 🔍 filtro no cache
         if (statusFiltro) {
           entregasCache = entregasCache.filter(e => {
             if (statusFiltro === "delivered") return e.status_entrega === "delivered";
@@ -224,15 +225,21 @@ app.get("/entregas", async (req, res) => {
       }
     );
 
+    /* =======================
+       3️⃣ MONTA ENTREGAS + IMAGEM
+    ======================= */
     let entregas = await Promise.all(
       ordersResponse.data.results.map(async (order) => {
-        const item = order.order_items?.[0]?.item;
+        const orderItem = order.order_items?.[0];
+        const produto = orderItem?.item?.title || "Produto não identificado";
 
         let statusEntrega = "não informado";
         let dataEntrega = null;
         let rastreio = null;
         let transportadora = "Mercado Envios";
+        let imagem = null;
 
+        // 🚚 Shipment
         if (order.shipping?.id) {
           try {
             const shipmentResponse = await axios.get(
@@ -249,13 +256,25 @@ app.get("/entregas", async (req, res) => {
               shipmentResponse.data.shipping_option?.name || transportadora;
 
           } catch {
-            // silêncio proposital
+            // ignora falha individual
           }
+        }
+
+        // 🖼️ IMAGEM (usa cache se existir)
+        const entregaExistente = await Entrega.findOne({
+          pedido_id: order.id
+        });
+
+        if (entregaExistente?.imagem) {
+          imagem = entregaExistente.imagem;
+        } else {
+          imagem = await getItemImageBySearch(produto);
         }
 
         return {
           pedido_id: order.id,
-          produto: item?.title || "Produto não identificado",
+          produto,
+          imagem,
           status_pedido: order.status,
           valor: order.total_amount,
           data_compra: order.date_created,
@@ -268,7 +287,7 @@ app.get("/entregas", async (req, res) => {
     );
 
     /* =======================
-       3️⃣ ATUALIZA CACHE
+       4️⃣ ATUALIZA CACHE
     ======================= */
     await Entrega.deleteMany({});
     await Entrega.insertMany(entregas);
@@ -276,7 +295,7 @@ app.get("/entregas", async (req, res) => {
     console.log("💾 Cache atualizado no MongoDB");
 
     /* =======================
-       4️⃣ FILTRO FINAL
+       5️⃣ FILTRO FINAL
     ======================= */
     if (statusFiltro) {
       entregas = entregas.filter(e => {
