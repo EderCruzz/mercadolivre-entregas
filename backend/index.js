@@ -173,8 +173,6 @@ app.get('/ml/orders', async (req, res) => {
 
 app.get("/entregas", async (req, res) => {
 
-  console.log("🔑 SERPAPI_KEY:", process.env.SERPAPI_KEY);
-
   try {
     const statusFiltro = req.query.status;
 
@@ -226,11 +224,9 @@ app.get("/entregas", async (req, res) => {
     );
 
     /* =======================
-       3️⃣ FUNÇÃO GOOGLE IMAGES (SERPAPI)
+       3️⃣ FUNÇÃO GOOGLE IMAGES
     ======================= */
     async function buscarImagemGoogle(produto) {
-      console.log("🔍 Buscando imagem para:", produto);
-
       try {
         const response = await axios.get("https://serpapi.com/search.json", {
           params: {
@@ -247,13 +243,7 @@ app.get("/entregas", async (req, res) => {
           response.data.images_results?.[0]?.thumbnail ||
           null
         );
-
-      } catch (err) {
-        if (err.code === "ECONNABORTED") {
-          console.warn("⏱️ Timeout ao buscar imagem:", produto);
-        } else {
-          console.error("❌ Erro SerpAPI:", err.response?.data || err.message);
-        }
+      } catch {
         return null;
       }
     }
@@ -269,7 +259,7 @@ app.get("/entregas", async (req, res) => {
 
         const produto = item?.title || "Produto não identificado";
 
-        /* ✅ QUANTIDADE (CORREÇÃO) */
+        /* ✅ QUANTIDADE */
         const quantidade = orderItem?.quantity ?? 1;
 
         let statusEntrega = "não informado";
@@ -304,17 +294,30 @@ app.get("/entregas", async (req, res) => {
           image = await buscarImagemGoogle(produto);
         }
 
-        const vendedor =
-          order.order_items?.[0]?.seller?.nickname ||
-          "Mercado Livre";
+        /* ✅ VENDEDOR REAL (CORREÇÃO DEFINITIVA) */
+        let vendedor = "Mercado Livre";
 
+        const sellerId =
+          order.seller?.id ||
+          orderItem?.seller?.id;
+
+        if (sellerId) {
+          try {
+            const sellerResponse = await axios.get(
+              `https://api.mercadolibre.com/users/${sellerId}`
+            );
+            vendedor = sellerResponse.data.nickname;
+          } catch {
+            vendedor = "Mercado Livre";
+          }
+        }
 
         return {
           pedido_id: order.id,
           produto,
           image,
-          quantidade,          // ✅ AGORA FUNCIONA
-          vendedor,            // ✅ AGORA FUNCIONA
+          quantidade,
+          vendedor,
           status_pedido: order.status,
           valor: order.total_amount,
           data_compra: order.date_created,
@@ -332,7 +335,7 @@ app.get("/entregas", async (req, res) => {
     await Entrega.deleteMany({});
     await Entrega.insertMany(entregas);
 
-    console.log("💾 Cache atualizado com imagens, vendedor e quantidade");
+    console.log("💾 Cache atualizado com vendedor real");
 
     res.json(entregas);
 
