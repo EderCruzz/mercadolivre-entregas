@@ -248,7 +248,7 @@ app.get("/entregas", async (req, res) => {
     }
 
     /* =======================
-       4️⃣ MAPEAMENTO
+      4️⃣ MAPEAMENTO (CORRIGIDO)
     ======================= */
     const entregas = await Promise.all(
       ordersResponse.data.results.map(async (order) => {
@@ -257,7 +257,7 @@ app.get("/entregas", async (req, res) => {
         const item = orderItem?.item;
 
         const produto = item?.title || "Produto não identificado";
-        const quantidade = orderItem?.quantity ?? 1;
+        const quantidade = Number(orderItem?.quantity ?? 1);
 
         let statusEntrega = "não informado";
         let dataEntrega = null;
@@ -279,27 +279,35 @@ app.get("/entregas", async (req, res) => {
           } catch {}
         }
 
-        /* 🖼️ imagem */
+        /* 🖼️ IMAGEM — NÃO PERDER IMAGEM ANTIGA */
         const cachedEntrega = cache.find(
-          c => c.pedido_id === order.id && c.image
+          c => c.pedido_id === order.id
         );
 
-        let image = cachedEntrega?.image || null;
+        let image = cachedEntrega?.image ?? null;
+
         if (!image) {
           image = await buscarImagemGoogle(produto);
         }
 
-        /* 🏪 VENDEDOR REAL (FORMA CORRETA) */
-        let vendedor = "Mercado Livre";
-        const sellerId = item?.seller_id;
+        /* 🏪 VENDEDOR — NÃO SOBRESCREVER CACHE */
+        let vendedor = cachedEntrega?.vendedor ?? null;
 
-        if (sellerId) {
-          try {
-            const sellerResponse = await axios.get(
-              `https://api.mercadolibre.com/users/${sellerId}`
-            );
-            vendedor = sellerResponse.data.nickname;
-          } catch {}
+        if (!vendedor) {
+          const sellerId = item?.seller_id;
+
+          if (sellerId) {
+            try {
+              const sellerResponse = await axios.get(
+                `https://api.mercadolibre.com/users/${sellerId}`
+              );
+              vendedor = sellerResponse.data.nickname;
+            } catch {}
+          }
+        }
+
+        if (!vendedor) {
+          vendedor = "Mercado Livre";
         }
 
         return {

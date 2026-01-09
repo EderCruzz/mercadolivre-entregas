@@ -18,7 +18,7 @@ function App() {
 
       {compras.map(compra => (
         <CompraCard
-          key={compra._id}
+          key={compra.pedido_id}
           compra={compra}
         />
       ))}
