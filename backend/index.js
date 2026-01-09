@@ -172,12 +172,11 @@ app.get('/ml/orders', async (req, res) => {
 });
 
 app.get("/entregas", async (req, res) => {
-
   try {
     const statusFiltro = req.query.status;
 
     /* =======================
-       1️⃣ VERIFICA CACHE
+       1️⃣ CACHE
     ======================= */
     const cache = await Entrega.find().sort({ data_compra: -1 });
 
@@ -192,10 +191,10 @@ app.get("/entregas", async (req, res) => {
         if (statusFiltro) {
           entregasCache = entregasCache.filter(e => {
             if (statusFiltro === "delivered") return e.status_entrega === "delivered";
-            if (statusFiltro === "shipped") {
+            if (statusFiltro === "shipped")
               return ["shipped", "ready_to_ship", "handling"].includes(e.status_entrega);
-            }
-            if (statusFiltro === "not_delivered") return e.status_entrega !== "delivered";
+            if (statusFiltro === "not_delivered")
+              return e.status_entrega !== "delivered";
             return true;
           });
         }
@@ -207,7 +206,7 @@ app.get("/entregas", async (req, res) => {
     console.log("🌐 Cache vencido, buscando na API");
 
     /* =======================
-       2️⃣ TOKEN + PEDIDOS
+       2️⃣ TOKEN + ORDERS
     ======================= */
     const accessToken = await getToken();
 
@@ -224,7 +223,7 @@ app.get("/entregas", async (req, res) => {
     );
 
     /* =======================
-       3️⃣ FUNÇÃO GOOGLE IMAGES
+       3️⃣ GOOGLE IMAGES
     ======================= */
     async function buscarImagemGoogle(produto) {
       try {
@@ -249,7 +248,7 @@ app.get("/entregas", async (req, res) => {
     }
 
     /* =======================
-       4️⃣ MAPEIA ENTREGAS
+       4️⃣ MAPEAMENTO
     ======================= */
     const entregas = await Promise.all(
       ordersResponse.data.results.map(async (order) => {
@@ -258,8 +257,6 @@ app.get("/entregas", async (req, res) => {
         const item = orderItem?.item;
 
         const produto = item?.title || "Produto não identificado";
-
-        /* ✅ QUANTIDADE */
         const quantidade = orderItem?.quantity ?? 1;
 
         let statusEntrega = "não informado";
@@ -267,7 +264,6 @@ app.get("/entregas", async (req, res) => {
         let rastreio = null;
         let transportadora = "Mercado Envios";
 
-        /* 📦 SHIPMENT */
         if (order.shipping?.id) {
           try {
             const shipment = await axios.get(
@@ -283,23 +279,19 @@ app.get("/entregas", async (req, res) => {
           } catch {}
         }
 
-        /* 🖼️ IMAGEM (CACHE → GOOGLE) */
+        /* 🖼️ imagem */
         const cachedEntrega = cache.find(
           c => c.pedido_id === order.id && c.image
         );
 
         let image = cachedEntrega?.image || null;
-
         if (!image) {
           image = await buscarImagemGoogle(produto);
         }
 
-        /* ✅ VENDEDOR REAL (CORREÇÃO DEFINITIVA) */
+        /* 🏪 VENDEDOR REAL (FORMA CORRETA) */
         let vendedor = "Mercado Livre";
-
-        const sellerId =
-          order.seller?.id ||
-          orderItem?.seller?.id;
+        const sellerId = item?.seller_id;
 
         if (sellerId) {
           try {
@@ -307,9 +299,7 @@ app.get("/entregas", async (req, res) => {
               `https://api.mercadolibre.com/users/${sellerId}`
             );
             vendedor = sellerResponse.data.nickname;
-          } catch {
-            vendedor = "Mercado Livre";
-          }
+          } catch {}
         }
 
         return {
@@ -335,18 +325,16 @@ app.get("/entregas", async (req, res) => {
     await Entrega.deleteMany({});
     await Entrega.insertMany(entregas);
 
-    console.log("💾 Cache atualizado com vendedor real");
+    console.log("💾 Cache atualizado com imagens, vendedor e quantidade");
 
     res.json(entregas);
 
   } catch (err) {
     console.error("❌ ERRO /entregas:", err.message);
-    res.status(500).json({
-      error: "Erro ao buscar entregas",
-      details: err.message
-    });
+    res.status(500).json({ error: "Erro ao buscar entregas" });
   }
 });
+
 
 
 app.get("/entregas/cache", async (req, res) => {
