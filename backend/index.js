@@ -188,7 +188,7 @@ app.get("/entregas", async (req, res) => {
       const cacheAge = Date.now() - new Date(cache[0].updatedAt).getTime();
 
       if (cacheAge < CACHE_TTL) {
-        console.log("📦 Cache válido, retornando MongoDB (paginado)");
+        console.log("📦 Cache válido, retornando MongoDB (normalizado + paginado)");
 
         let entregasCache = cache;
 
@@ -203,10 +203,16 @@ app.get("/entregas", async (req, res) => {
           });
         }
 
-        const total = entregasCache.length;
-        const totalPages = Math.ceil(total / PER_PAGE);
+        // 🔧 NORMALIZA CACHE ANTIGO (quantidade / vendedor)
+        const normalizadas = entregasCache.map(e => ({
+          ...e.toObject(),
+          quantidade: Number(e.quantidade ?? 1),
+          vendedor: e.vendedor ?? "Mercado Livre"
+        }));
 
-        const paginated = entregasCache.slice(skip, skip + PER_PAGE);
+        const total = normalizadas.length;
+        const totalPages = Math.ceil(total / PER_PAGE);
+        const paginated = normalizadas.slice(skip, skip + PER_PAGE);
 
         return res.json({
           page,

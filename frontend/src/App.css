@@ -1,9 +1,36 @@
-body {
-  font-family: Arial, sans-serif;
-  background: #f5f5f5;
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0;
 }
 
-.container {
-  max-width: 900px;
-  margin: 20px auto;
+.pagination button {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid #3483fa;
+  background: #3483fa;
+  color: #fff;
+  cursor: pointer;
+}
+
+.pagination button:disabled {
+  background: #ccc;
+  border-color: #ccc;
+  cursor: not-allowed;
+}
+
+.cards-wrapper {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.fade-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.fade-out {
+  opacity: 0;
+  transform: translateY(10px);
 }
