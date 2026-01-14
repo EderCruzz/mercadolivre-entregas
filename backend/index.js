@@ -248,102 +248,98 @@ app.get("/entregas", async (req, res) => {
     }
 
     /* =======================
-      4️⃣ MAPEAMENTO (CORRIGIDO)
+       4️⃣ MAPEAMENTO + DEDUP
     ======================= */
-    const entregas = await Promise.all(
-      ordersResponse.data.results.map(async (order) => {
+    const entregasMap = new Map();
 
-        const orderItem = order.order_items?.[0];
-        const item = orderItem?.item;
+    for (const order of ordersResponse.data.results) {
 
-        const produto = item?.title || "Produto não identificado";
-        const quantidade = Number(orderItem?.quantity ?? 1);
+      if (entregasMap.has(order.id)) continue; // 🔥 REMOVE DUPLICADOS
 
-        let statusEntrega = "não informado";
-        let dataEntrega = null;
-        let rastreio = null;
-        let transportadora = "Mercado Envios";
+      const orderItem = order.order_items?.[0];
+      const item = orderItem?.item;
 
-        if (order.shipping?.id) {
+      const produto = item?.title || "Produto não identificado";
+      const quantidade = Number(orderItem?.quantity ?? 1);
+
+      let statusEntrega = "não informado";
+      let dataEntrega = null;
+      let rastreio = null;
+      let transportadora = "Mercado Envios";
+
+      if (order.shipping?.id) {
+        try {
+          const shipment = await axios.get(
+            `https://api.mercadolibre.com/shipments/${order.shipping.id}`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+
+          statusEntrega = shipment.data.status || statusEntrega;
+          dataEntrega = shipment.data.delivered_at || null;
+          rastreio = shipment.data.tracking_number || null;
+          transportadora =
+            shipment.data.shipping_option?.name || transportadora;
+        } catch {}
+      }
+
+      /* 🖼️ IMAGEM — reaproveita cache */
+      const cachedEntrega = cache.find(c => c.pedido_id === order.id);
+
+      let image = cachedEntrega?.image ?? null;
+      if (!image) {
+        image = await buscarImagemGoogle(produto);
+      }
+
+      /* 🏪 VENDEDOR — reaproveita cache */
+      let vendedor = cachedEntrega?.vendedor ?? null;
+
+      if (!vendedor) {
+        const sellerId = item?.seller_id;
+        if (sellerId) {
           try {
-            const shipment = await axios.get(
-              `https://api.mercadolibre.com/shipments/${order.shipping.id}`,
-              { headers: { Authorization: `Bearer ${accessToken}` } }
+            const sellerResponse = await axios.get(
+              `https://api.mercadolibre.com/users/${sellerId}`
             );
-
-            statusEntrega = shipment.data.status || statusEntrega;
-            dataEntrega = shipment.data.delivered_at || null;
-            rastreio = shipment.data.tracking_number || null;
-            transportadora =
-              shipment.data.shipping_option?.name || transportadora;
+            vendedor = sellerResponse.data.nickname;
           } catch {}
         }
+      }
 
-        /* 🖼️ IMAGEM — NÃO PERDER IMAGEM ANTIGA */
-        const cachedEntrega = cache.find(
-          c => c.pedido_id === order.id
-        );
+      if (!vendedor) vendedor = "Mercado Livre";
 
-        let image = cachedEntrega?.image ?? null;
+      entregasMap.set(order.id, {
+        pedido_id: order.id,
+        produto,
+        image,
+        quantidade,
+        vendedor,
+        status_pedido: order.status,
+        valor: order.total_amount,
+        data_compra: order.date_created,
+        status_entrega: statusEntrega,
+        data_entrega: dataEntrega,
+        transportadora,
+        rastreio
+      });
+    }
 
-        if (!image) {
-          image = await buscarImagemGoogle(produto);
-        }
-
-        /* 🏪 VENDEDOR — NÃO SOBRESCREVER CACHE */
-        let vendedor = cachedEntrega?.vendedor ?? null;
-
-        if (!vendedor) {
-          const sellerId = item?.seller_id;
-
-          if (sellerId) {
-            try {
-              const sellerResponse = await axios.get(
-                `https://api.mercadolibre.com/users/${sellerId}`
-              );
-              vendedor = sellerResponse.data.nickname;
-            } catch {}
-          }
-        }
-
-        if (!vendedor) {
-          vendedor = "Mercado Livre";
-        }
-
-        return {
-          pedido_id: order.id,
-          produto,
-          image,
-          quantidade,
-          vendedor,
-          status_pedido: order.status,
-          valor: order.total_amount,
-          data_compra: order.date_created,
-          status_entrega: statusEntrega,
-          data_entrega: dataEntrega,
-          transportadora,
-          rastreio
-        };
-      })
-    );
+    const entregasUnicas = Array.from(entregasMap.values());
 
     /* =======================
        5️⃣ ATUALIZA CACHE
     ======================= */
     await Entrega.deleteMany({});
-    await Entrega.insertMany(entregas);
+    await Entrega.insertMany(entregasUnicas);
 
-    console.log("💾 Cache atualizado com imagens, vendedor e quantidade");
+    console.log("💾 Cache atualizado (sem duplicados)");
 
-    res.json(entregas);
+    res.json(entregasUnicas);
 
   } catch (err) {
     console.error("❌ ERRO /entregas:", err.message);
     res.status(500).json({ error: "Erro ao buscar entregas" });
   }
 });
-
-
 
 app.get("/entregas/cache", async (req, res) => {
   try {
