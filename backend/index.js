@@ -188,7 +188,7 @@ app.get("/entregas", async (req, res) => {
       const cacheAge = Date.now() - new Date(cache[0].updatedAt).getTime();
 
       if (cacheAge < CACHE_TTL) {
-        console.log("📦 Cache válido, retornando MongoDB (normalizado + paginado)");
+        console.log("📦 Cache válido, retornando MongoDB (paginado)");
 
         let entregasCache = cache;
 
@@ -203,16 +203,9 @@ app.get("/entregas", async (req, res) => {
           });
         }
 
-        // 🔧 NORMALIZA CACHE ANTIGO (quantidade / vendedor)
-        const normalizadas = entregasCache.map(e => ({
-          ...e.toObject(),
-          quantidade: Number(e.quantidade ?? 1),
-          vendedor: e.vendedor ?? "Mercado Livre"
-        }));
-
-        const total = normalizadas.length;
+        const total = entregasCache.length;
         const totalPages = Math.ceil(total / PER_PAGE);
-        const paginated = normalizadas.slice(skip, skip + PER_PAGE);
+        const paginated = entregasCache.slice(skip, skip + PER_PAGE);
 
         return res.json({
           page,
@@ -302,22 +295,18 @@ app.get("/entregas", async (req, res) => {
         } catch {}
       }
 
+      /* 🖼️ IMAGEM (não perde cache) */
       const cachedEntrega = cache.find(c => c.pedido_id === order.id);
 
       let image = cachedEntrega?.image ?? null;
       if (!image) image = await buscarImagemGoogle(produto);
 
-      let vendedor = cachedEntrega?.vendedor ?? null;
-      if (!vendedor && item?.seller_id) {
-        try {
-          const sellerResponse = await axios.get(
-            `https://api.mercadolibre.com/users/${item.seller_id}`
-          );
-          vendedor = sellerResponse.data.nickname;
-        } catch {}
-      }
-
-      if (!vendedor) vendedor = "Mercado Livre";
+      /* 🏪 VENDEDOR REAL (ETIQUETA — CORRETO) */
+      const vendedor =
+        order.order_items?.[0]?.seller?.nickname ||
+        order.seller?.nickname ||
+        cachedEntrega?.vendedor ||
+        "Vendedor não identificado";
 
       entregasMap.set(order.id, {
         pedido_id: order.id,
@@ -347,6 +336,8 @@ app.get("/entregas", async (req, res) => {
     const totalPages = Math.ceil(total / PER_PAGE);
     const paginated = entregasUnicas.slice(skip, skip + PER_PAGE);
 
+    console.log("💾 Cache atualizado com vendedor REAL, imagens e quantidade");
+
     res.json({
       page,
       perPage: PER_PAGE,
@@ -360,6 +351,7 @@ app.get("/entregas", async (req, res) => {
     res.status(500).json({ error: "Erro ao buscar entregas" });
   }
 });
+
 
 
 app.get("/entregas/cache", async (req, res) => {
