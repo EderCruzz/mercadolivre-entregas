@@ -173,6 +173,10 @@ app.get('/ml/orders', async (req, res) => {
 
 app.get("/entregas", async (req, res) => {
   try {
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const PER_PAGE = 10;
+    const skip = (page - 1) * PER_PAGE;
+
     const statusFiltro = req.query.status;
 
     /* =======================
@@ -184,7 +188,7 @@ app.get("/entregas", async (req, res) => {
       const cacheAge = Date.now() - new Date(cache[0].updatedAt).getTime();
 
       if (cacheAge < CACHE_TTL) {
-        console.log("📦 Cache válido, retornando MongoDB");
+        console.log("📦 Cache válido, retornando MongoDB (paginado)");
 
         let entregasCache = cache;
 
@@ -199,7 +203,18 @@ app.get("/entregas", async (req, res) => {
           });
         }
 
-        return res.json(entregasCache);
+        const total = entregasCache.length;
+        const totalPages = Math.ceil(total / PER_PAGE);
+
+        const paginated = entregasCache.slice(skip, skip + PER_PAGE);
+
+        return res.json({
+          page,
+          perPage: PER_PAGE,
+          total,
+          totalPages,
+          data: paginated
+        });
       }
     }
 
@@ -253,8 +268,7 @@ app.get("/entregas", async (req, res) => {
     const entregasMap = new Map();
 
     for (const order of ordersResponse.data.results) {
-
-      if (entregasMap.has(order.id)) continue; // 🔥 REMOVE DUPLICADOS
+      if (entregasMap.has(order.id)) continue;
 
       const orderItem = order.order_items?.[0];
       const item = orderItem?.item;
@@ -282,27 +296,19 @@ app.get("/entregas", async (req, res) => {
         } catch {}
       }
 
-      /* 🖼️ IMAGEM — reaproveita cache */
       const cachedEntrega = cache.find(c => c.pedido_id === order.id);
 
       let image = cachedEntrega?.image ?? null;
-      if (!image) {
-        image = await buscarImagemGoogle(produto);
-      }
+      if (!image) image = await buscarImagemGoogle(produto);
 
-      /* 🏪 VENDEDOR — reaproveita cache */
       let vendedor = cachedEntrega?.vendedor ?? null;
-
-      if (!vendedor) {
-        const sellerId = item?.seller_id;
-        if (sellerId) {
-          try {
-            const sellerResponse = await axios.get(
-              `https://api.mercadolibre.com/users/${sellerId}`
-            );
-            vendedor = sellerResponse.data.nickname;
-          } catch {}
-        }
+      if (!vendedor && item?.seller_id) {
+        try {
+          const sellerResponse = await axios.get(
+            `https://api.mercadolibre.com/users/${item.seller_id}`
+          );
+          vendedor = sellerResponse.data.nickname;
+        } catch {}
       }
 
       if (!vendedor) vendedor = "Mercado Livre";
@@ -331,15 +337,24 @@ app.get("/entregas", async (req, res) => {
     await Entrega.deleteMany({});
     await Entrega.insertMany(entregasUnicas);
 
-    console.log("💾 Cache atualizado (sem duplicados)");
+    const total = entregasUnicas.length;
+    const totalPages = Math.ceil(total / PER_PAGE);
+    const paginated = entregasUnicas.slice(skip, skip + PER_PAGE);
 
-    res.json(entregasUnicas);
+    res.json({
+      page,
+      perPage: PER_PAGE,
+      total,
+      totalPages,
+      data: paginated
+    });
 
   } catch (err) {
     console.error("❌ ERRO /entregas:", err.message);
     res.status(500).json({ error: "Erro ao buscar entregas" });
   }
 });
+
 
 app.get("/entregas/cache", async (req, res) => {
   try {
