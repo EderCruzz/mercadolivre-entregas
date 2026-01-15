@@ -368,8 +368,24 @@ app.get("/entregas/cache", async (req, res) => {
 
 app.get("/public/entregas", async (req, res) => {
   try {
-    const entregas = await Entrega.find().sort({ data_compra: -1 });
-    res.json(entregas);
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const PER_PAGE = 10;
+    const skip = (page - 1) * PER_PAGE;
+
+    const total = await Entrega.countDocuments();
+
+    const entregas = await Entrega.find()
+      .sort({ data_compra: -1 })
+      .skip(skip)
+      .limit(PER_PAGE);
+
+    res.json({
+      page,
+      perPage: PER_PAGE,
+      total,
+      totalPages: Math.ceil(total / PER_PAGE),
+      data: entregas
+    });
   } catch (err) {
     res.status(500).json({
       error: "Erro ao buscar entregas públicas",
@@ -377,6 +393,7 @@ app.get("/public/entregas", async (req, res) => {
     });
   }
 });
+
 
 const startCron = require("./src/cron/updateEntregas");
 startCron();
