@@ -295,29 +295,18 @@ app.get("/entregas", async (req, res) => {
         } catch {}
       }
 
+      /* 🖼️ IMAGEM (não perde cache) */
       const cachedEntrega = cache.find(c => c.pedido_id === order.id);
 
-      /* 🖼️ IMAGEM */
       let image = cachedEntrega?.image ?? null;
       if (!image) image = await buscarImagemGoogle(produto);
 
-      /* 🏪 VENDEDOR REAL (ETIQUETA DO ML) */
-      let vendedor =
-        orderItem?.seller?.nickname ||
+      /* 🏪 VENDEDOR REAL (ETIQUETA — CORRETO) */
+      const vendedor =
+        order.order_items?.[0]?.seller?.nickname ||
         order.seller?.nickname ||
         cachedEntrega?.vendedor ||
-        null;
-
-      if (!vendedor && item?.seller_id) {
-        try {
-          const sellerResponse = await axios.get(
-            `https://api.mercadolibre.com/users/${item.seller_id}`
-          );
-          vendedor = sellerResponse.data.nickname;
-        } catch {}
-      }
-
-      if (!vendedor) vendedor = "Vendedor não identificado";
+        "Vendedor não identificado";
 
       entregasMap.set(order.id, {
         pedido_id: order.id,
@@ -338,32 +327,16 @@ app.get("/entregas", async (req, res) => {
     const entregasUnicas = Array.from(entregasMap.values());
 
     /* =======================
-       5️⃣ ATUALIZA CACHE (FORÇANDO CAMPOS)
+       5️⃣ ATUALIZA CACHE
     ======================= */
     await Entrega.deleteMany({});
-
-    await Entrega.insertMany(
-      entregasUnicas.map(e => ({
-        pedido_id: e.pedido_id,
-        produto: e.produto,
-        image: e.image,
-        quantidade: e.quantidade,
-        vendedor: e.vendedor,
-        status_pedido: e.status_pedido,
-        valor: e.valor,
-        data_compra: e.data_compra,
-        status_entrega: e.status_entrega,
-        data_entrega: e.data_entrega,
-        transportadora: e.transportadora,
-        rastreio: e.rastreio
-      }))
-    );
+    await Entrega.insertMany(entregasUnicas);
 
     const total = entregasUnicas.length;
     const totalPages = Math.ceil(total / PER_PAGE);
     const paginated = entregasUnicas.slice(skip, skip + PER_PAGE);
 
-    console.log("💾 Cache atualizado com vendedor REAL, quantidade e imagens");
+    console.log("💾 Cache atualizado com vendedor REAL, imagens e quantidade");
 
     res.json({
       page,
@@ -393,24 +366,8 @@ app.get("/entregas/cache", async (req, res) => {
 
 app.get("/public/entregas", async (req, res) => {
   try {
-    const page = Math.max(parseInt(req.query.page) || 1, 1);
-    const PER_PAGE = 10;
-    const skip = (page - 1) * PER_PAGE;
-
-    const total = await Entrega.countDocuments();
-
-    const entregas = await Entrega.find()
-      .sort({ data_compra: -1 })
-      .skip(skip)
-      .limit(PER_PAGE);
-
-    res.json({
-      page,
-      perPage: PER_PAGE,
-      total,
-      totalPages: Math.ceil(total / PER_PAGE),
-      data: entregas
-    });
+    const entregas = await Entrega.find().sort({ data_compra: -1 });
+    res.json(entregas);
   } catch (err) {
     res.status(500).json({
       error: "Erro ao buscar entregas públicas",
@@ -418,7 +375,6 @@ app.get("/public/entregas", async (req, res) => {
     });
   }
 });
-
 
 const startCron = require("./src/cron/updateEntregas");
 startCron();
