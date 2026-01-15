@@ -8,38 +8,52 @@ function App() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [animating, setAnimating] = useState(false);
 
   useEffect(() => {
-    async function carregarCompras() {
-      setLoading(true);
-
-      try {
-        const res = await api.get(`/public/entregas?page=${page}`);
-
-        setCompras(res.data.data);        // 👈 AQUI ESTAVA O PROBLEMA ANTES
-        setTotalPages(res.data.totalPages);
-      } catch (err) {
-        console.error("Erro ao buscar entregas:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    carregarCompras();
+    carregarCompras(page);
   }, [page]);
+
+  async function carregarCompras(pagina) {
+    try {
+      setAnimating(true);
+
+      // ⏳ espera a animação de saída
+      setTimeout(async () => {
+        setLoading(true);
+
+        const res = await api.get(`/entregas?page=${pagina}`);
+
+        setCompras(res.data.data);
+        setTotalPages(res.data.totalPages);
+
+        setLoading(false);
+
+        // ⏳ animação de entrada
+        setTimeout(() => {
+          setAnimating(false);
+        }, 50);
+
+      }, 200);
+
+    } catch (err) {
+      console.error("Erro ao carregar compras:", err);
+      setAnimating(false);
+    }
+  }
 
   return (
     <div className="container">
       <h1>📦 Minhas Compras</h1>
 
-      {loading && <p>Carregando...</p>}
-
-      {!loading && compras.map(compra => (
-        <CompraCard
-          key={compra._id}
-          compra={compra}
-        />
-      ))}
+      <div className={`cards-wrapper ${animating ? "fade-out" : "fade-in"}`}>
+        {compras.map(compra => (
+          <CompraCard
+            key={compra.pedido_id}
+            compra={compra}
+          />
+        ))}
+      </div>
 
       {/* PAGINAÇÃO */}
       <div className="pagination">

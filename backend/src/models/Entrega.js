@@ -10,6 +10,7 @@ const EntregaSchema = new mongoose.Schema(
       default: null
     },
 
+    quantidade: String,
     status_pedido: String,
     status_entrega: String,
     data_entrega: Date,
