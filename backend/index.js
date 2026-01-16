@@ -179,6 +179,8 @@ app.get("/entregas", async (req, res) => {
 
     const statusFiltro = req.query.status;
 
+    const centroCustoFiltro = req.query.centro_custo;
+
     /* =======================
        1️⃣ CACHE
     ======================= */
@@ -201,6 +203,15 @@ app.get("/entregas", async (req, res) => {
               return e.status_entrega !== "delivered";
             return true;
           });
+        }
+
+        // 🆕 filtro centro de custo
+        if (centroCustoFiltro === "pendente") {
+          entregasCache = entregasCache.filter(e => !e.centro_custo);
+        }
+
+        if (centroCustoFiltro === "definido") {
+          entregasCache = entregasCache.filter(e => e.centro_custo);
         }
 
         const total = entregasCache.length;
@@ -375,6 +386,31 @@ app.get("/public/entregas", async (req, res) => {
     });
   }
 });
+
+app.patch("/entregas/:id/centro-custo", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { centro_custo } = req.body;
+
+    if (!centro_custo) {
+      return res.status(400).json({ error: "Centro de custo obrigatório" });
+    }
+
+    const entrega = await Entrega.findByIdAndUpdate(
+      id,
+      { centro_custo },
+      { new: true }
+    );
+
+    res.json(entrega);
+  } catch (err) {
+    res.status(500).json({
+      error: "Erro ao salvar centro de custo",
+      details: err.message
+    });
+  }
+});
+
 
 const startCron = require("./src/cron/updateEntregas");
 startCron();
