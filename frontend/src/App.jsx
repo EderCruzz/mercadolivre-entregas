@@ -7,11 +7,7 @@ function App() {
   const [compras, setCompras] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [animating, setAnimating] = useState(false);
-
-  // 🔑 controla qual "página" estamos vendo
-  const [view, setView] = useState("pendente"); 
-  // pendente | definido
+  const [view, setView] = useState("triagem");
 
   useEffect(() => {
     setPage(1);
@@ -23,77 +19,35 @@ function App() {
   }, [page]);
 
   async function carregarCompras(pagina) {
-    try {
-      setAnimating(true);
+    let url = `/entregas?page=${pagina}`;
 
-      setTimeout(async () => {
-        const res = await api.get(
-          `/entregas?page=${pagina}&centro_custo=${view}`
-        );
+    if (view === "triagem") url += "&centro_custo=pendente";
+    if (view === "classificados") url += "&centro_custo=definido&recebido=nao";
+    if (view === "entregues") url += "&recebido=sim";
 
-        setCompras(res.data.data);
-        setTotalPages(res.data.totalPages);
-
-        setAnimating(false);
-      }, 200);
-    } catch (err) {
-      console.error("Erro ao carregar compras:", err);
-      setAnimating(false);
-    }
+    const res = await api.get(url);
+    setCompras(res.data.data);
+    setTotalPages(res.data.totalPages);
   }
 
   return (
     <div className="container">
       <h1>📦 Minhas Compras</h1>
 
-      {/* 🔀 ABAS */}
       <div className="tabs">
-        <button
-          className={view === "pendente" ? "active" : ""}
-          onClick={() => setView("pendente")}
-        >
-          📝 Triagem
-        </button>
-
-        <button
-          className={view === "definido" ? "active" : ""}
-          onClick={() => setView("definido")}
-        >
-          📦 Classificados
-        </button>
+        <button onClick={() => setView("triagem")}>📝 Triagem</button>
+        <button onClick={() => setView("classificados")}>📦 Classificados</button>
+        <button onClick={() => setView("entregues")}>✅ Entregues</button>
       </div>
 
-      <div className={`cards-wrapper ${animating ? "fade-out" : "fade-in"}`}>
-        {compras.map(compra => (
-          <CompraCard
-            key={compra.pedido_id}
-            compra={compra}
-            view={view}
-            onAtualizar={() => carregarCompras(page)}
-          />
-        ))}
-      </div>
-
-      {/* PAGINAÇÃO */}
-      <div className="pagination">
-        <button
-          onClick={() => setPage(p => Math.max(p - 1, 1))}
-          disabled={page === 1}
-        >
-          ⬅ Anterior
-        </button>
-
-        <span>
-          Página {page} de {totalPages}
-        </span>
-
-        <button
-          onClick={() => setPage(p => Math.min(p + 1, totalPages))}
-          disabled={page === totalPages}
-        >
-          Próxima ➡
-        </button>
-      </div>
+      {compras.map(compra => (
+        <CompraCard
+          key={compra.pedido_id}
+          compra={compra}
+          view={view}
+          onAtualizar={() => carregarCompras(page)}
+        />
+      ))}
     </div>
   );
 }

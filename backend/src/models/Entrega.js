@@ -23,7 +23,9 @@ const EntregaSchema = new mongoose.Schema(
     centro_custo: {
       type: String,
       default: null
-    }
+    },
+    conferente: String,   // 🆕 quem recebeu
+    data_recebimento: Date, // 🆕 quando recebeu
   },
   { timestamps: true }
 );

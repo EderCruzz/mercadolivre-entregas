@@ -177,8 +177,8 @@ app.get("/entregas", async (req, res) => {
     const PER_PAGE = 10;
     const skip = (page - 1) * PER_PAGE;
 
-    const statusFiltro = req.query.status;
     const centroCustoFiltro = req.query.centro_custo;
+    const recebidoFiltro = req.query.recebido;
 
     /* =======================
        1️⃣ CACHE
@@ -189,20 +189,7 @@ app.get("/entregas", async (req, res) => {
       const cacheAge = Date.now() - new Date(cache[0].updatedAt).getTime();
 
       if (cacheAge < CACHE_TTL) {
-        console.log("📦 Cache válido, retornando MongoDB");
-
         let entregasCache = cache;
-
-        if (statusFiltro) {
-          entregasCache = entregasCache.filter(e => {
-            if (statusFiltro === "delivered") return e.status_entrega === "delivered";
-            if (statusFiltro === "shipped")
-              return ["shipped", "ready_to_ship", "handling"].includes(e.status_entrega);
-            if (statusFiltro === "not_delivered")
-              return e.status_entrega !== "delivered";
-            return true;
-          });
-        }
 
         if (centroCustoFiltro === "pendente") {
           entregasCache = entregasCache.filter(e => !e.centro_custo);
@@ -210,6 +197,14 @@ app.get("/entregas", async (req, res) => {
 
         if (centroCustoFiltro === "definido") {
           entregasCache = entregasCache.filter(e => e.centro_custo);
+        }
+
+        if (recebidoFiltro === "sim") {
+          entregasCache = entregasCache.filter(e => e.conferente);
+        }
+
+        if (recebidoFiltro === "nao") {
+          entregasCache = entregasCache.filter(e => !e.conferente);
         }
 
         const total = entregasCache.length;
@@ -226,10 +221,8 @@ app.get("/entregas", async (req, res) => {
       }
     }
 
-    console.log("🌐 Cache vencido, buscando na API");
-
     /* =======================
-       2️⃣ TOKEN + ORDERS
+       2️⃣ API MERCADO LIVRE
     ======================= */
     const accessToken = await getToken();
 
@@ -245,98 +238,29 @@ app.get("/entregas", async (req, res) => {
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
-    /* =======================
-       3️⃣ GOOGLE IMAGES
-    ======================= */
-    async function buscarImagemGoogle(produto) {
-      try {
-        const response = await axios.get("https://serpapi.com/search.json", {
-          params: {
-            engine: "google_images",
-            q: produto,
-            api_key: process.env.SERPAPI_KEY,
-            ijn: 0
-          },
-          timeout: 20000
-        });
-
-        return (
-          response.data.images_results?.[0]?.original ||
-          response.data.images_results?.[0]?.thumbnail ||
-          null
-        );
-      } catch {
-        return null;
-      }
-    }
-
-    /* =======================
-       4️⃣ MAPEAMENTO + PRESERVA CENTRO DE CUSTO
-    ======================= */
     const entregasMap = new Map();
 
     for (const order of ordersResponse.data.results) {
-      if (entregasMap.has(order.id)) continue;
-
-      const orderItem = order.order_items?.[0];
-      const item = orderItem?.item;
-
-      const produto = item?.title || "Produto não identificado";
-      const quantidade = Number(orderItem?.quantity ?? 1);
-
-      let statusEntrega = "não informado";
-      let dataEntrega = null;
-      let rastreio = null;
-      let transportadora = "Mercado Envios";
-
-      if (order.shipping?.id) {
-        try {
-          const shipment = await axios.get(
-            `https://api.mercadolibre.com/shipments/${order.shipping.id}`,
-            { headers: { Authorization: `Bearer ${accessToken}` } }
-          );
-
-          statusEntrega = shipment.data.status || statusEntrega;
-          dataEntrega = shipment.data.delivered_at || null;
-          rastreio = shipment.data.tracking_number || null;
-          transportadora =
-            shipment.data.shipping_option?.name || transportadora;
-        } catch {}
-      }
-
       const cachedEntrega = cache.find(c => c.pedido_id === order.id);
-
-      let image = cachedEntrega?.image ?? null;
-      if (!image) image = await buscarImagemGoogle(produto);
-
-      const vendedor =
-        order.order_items?.[0]?.seller?.nickname ||
-        order.seller?.nickname ||
-        cachedEntrega?.vendedor ||
-        "Vendedor não identificado";
 
       entregasMap.set(order.id, {
         pedido_id: order.id,
-        produto,
-        image,
-        quantidade,
-        vendedor,
-        centro_custo: cachedEntrega?.centro_custo ?? null, // 🔥 AQUI
+        produto: order.order_items?.[0]?.item?.title,
+        image: cachedEntrega?.image ?? null,
+        quantidade: order.order_items?.[0]?.quantity ?? 1,
+        vendedor:
+          order.order_items?.[0]?.seller?.nickname ||
+          cachedEntrega?.vendedor,
+        centro_custo: cachedEntrega?.centro_custo ?? null,
+        conferente: cachedEntrega?.conferente ?? null,
+        data_recebimento: cachedEntrega?.data_recebimento ?? null,
         status_pedido: order.status,
-        valor: order.total_amount,
-        data_compra: order.date_created,
-        status_entrega: statusEntrega,
-        data_entrega: dataEntrega,
-        transportadora,
-        rastreio
+        data_compra: order.date_created
       });
     }
 
     const entregasUnicas = Array.from(entregasMap.values());
 
-    /* =======================
-       5️⃣ ATUALIZA CACHE (SEM PERDER DADOS)
-    ======================= */
     await Entrega.bulkWrite(
       entregasUnicas.map(e => ({
         updateOne: {
@@ -347,32 +271,16 @@ app.get("/entregas", async (req, res) => {
       }))
     );
 
-    let entregasFiltradas = entregasUnicas;
-
-    if (centroCustoFiltro === "pendente") {
-      entregasFiltradas = entregasFiltradas.filter(e => !e.centro_custo);
-    }
-
-    if (centroCustoFiltro === "definido") {
-      entregasFiltradas = entregasFiltradas.filter(e => e.centro_custo);
-    }
-
-    const total = entregasFiltradas.length;
-    const totalPages = Math.ceil(total / PER_PAGE);
-    const paginated = entregasFiltradas.slice(skip, skip + PER_PAGE);
-
-    console.log("💾 Cache atualizado SEM perder centro de custo");
-
     res.json({
       page,
       perPage: PER_PAGE,
-      total,
-      totalPages,
-      data: paginated
+      total: entregasUnicas.length,
+      totalPages: Math.ceil(entregasUnicas.length / PER_PAGE),
+      data: entregasUnicas.slice(skip, skip + PER_PAGE)
     });
 
   } catch (err) {
-    console.error("❌ ERRO /entregas:", err.message);
+    console.error(err);
     res.status(500).json({ error: "Erro ao buscar entregas" });
   }
 });
@@ -461,6 +369,28 @@ app.put("/entregas/:pedido_id/centro-custo", async (req, res) => {
   }
 });
 
+app.put("/entregas/:id/recebimento", async (req, res) => {
+  try {
+    const { conferente } = req.body;
+
+    if (!conferente) {
+      return res.status(400).json({ error: "Conferente obrigatório" });
+    }
+
+    const entrega = await Entrega.findByIdAndUpdate(
+      req.params.id,
+      {
+        conferente,
+        data_recebimento: new Date()
+      },
+      { new: true }
+    );
+
+    res.json(entrega);
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao confirmar recebimento" });
+  }
+});
 
 const startCron = require("./src/cron/updateEntregas");
 startCron();
