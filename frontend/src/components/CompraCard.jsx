@@ -10,7 +10,7 @@ export default function CompraCard({ compra, view, onAtualizar }) {
   async function salvarCentroCusto() {
     if (!centro.trim()) return;
 
-    await api.put(`/entregas/${compra._id}/centro-custo`, {
+    await api.put(`/entregas/${compra.pedido_id}/centro-custo`, {
       centro_custo: centro
     });
 
