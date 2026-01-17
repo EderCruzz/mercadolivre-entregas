@@ -7,8 +7,16 @@ function App() {
   const [compras, setCompras] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(false);
   const [animating, setAnimating] = useState(false);
+
+  // 🔑 controla qual "página" estamos vendo
+  const [view, setView] = useState("pendente"); 
+  // pendente | definido
+
+  useEffect(() => {
+    setPage(1);
+    carregarCompras(1);
+  }, [view]);
 
   useEffect(() => {
     carregarCompras(page);
@@ -18,24 +26,16 @@ function App() {
     try {
       setAnimating(true);
 
-      // ⏳ espera a animação de saída
       setTimeout(async () => {
-        setLoading(true);
-
-        const res = await api.get(`/entregas?page=${pagina}`);
+        const res = await api.get(
+          `/entregas?page=${pagina}&centro_custo=${view}`
+        );
 
         setCompras(res.data.data);
         setTotalPages(res.data.totalPages);
 
-        setLoading(false);
-
-        // ⏳ animação de entrada
-        setTimeout(() => {
-          setAnimating(false);
-        }, 50);
-
+        setAnimating(false);
       }, 200);
-
     } catch (err) {
       console.error("Erro ao carregar compras:", err);
       setAnimating(false);
@@ -46,11 +46,30 @@ function App() {
     <div className="container">
       <h1>📦 Minhas Compras</h1>
 
+      {/* 🔀 ABAS */}
+      <div className="tabs">
+        <button
+          className={view === "pendente" ? "active" : ""}
+          onClick={() => setView("pendente")}
+        >
+          📝 Triagem
+        </button>
+
+        <button
+          className={view === "definido" ? "active" : ""}
+          onClick={() => setView("definido")}
+        >
+          📦 Classificados
+        </button>
+      </div>
+
       <div className={`cards-wrapper ${animating ? "fade-out" : "fade-in"}`}>
         {compras.map(compra => (
           <CompraCard
             key={compra.pedido_id}
             compra={compra}
+            view={view}
+            onAtualizar={() => carregarCompras(page)}
           />
         ))}
       </div>

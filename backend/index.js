@@ -178,6 +178,7 @@ app.get("/entregas", async (req, res) => {
     const skip = (page - 1) * PER_PAGE;
 
     const statusFiltro = req.query.status;
+    const centroCustoFiltro = req.query.centro_custo;
 
     /* =======================
        1️⃣ CACHE
@@ -188,7 +189,7 @@ app.get("/entregas", async (req, res) => {
       const cacheAge = Date.now() - new Date(cache[0].updatedAt).getTime();
 
       if (cacheAge < CACHE_TTL) {
-        console.log("📦 Cache válido, retornando MongoDB (paginado)");
+        console.log("📦 Cache válido, retornando MongoDB");
 
         let entregasCache = cache;
 
@@ -201,6 +202,14 @@ app.get("/entregas", async (req, res) => {
               return e.status_entrega !== "delivered";
             return true;
           });
+        }
+
+        if (centroCustoFiltro === "pendente") {
+          entregasCache = entregasCache.filter(e => !e.centro_custo);
+        }
+
+        if (centroCustoFiltro === "definido") {
+          entregasCache = entregasCache.filter(e => e.centro_custo);
         }
 
         const total = entregasCache.length;
@@ -262,7 +271,7 @@ app.get("/entregas", async (req, res) => {
     }
 
     /* =======================
-       4️⃣ MAPEAMENTO + DEDUP
+       4️⃣ MAPEAMENTO + PRESERVA CENTRO DE CUSTO
     ======================= */
     const entregasMap = new Map();
 
@@ -295,13 +304,11 @@ app.get("/entregas", async (req, res) => {
         } catch {}
       }
 
-      /* 🖼️ IMAGEM (não perde cache) */
       const cachedEntrega = cache.find(c => c.pedido_id === order.id);
 
       let image = cachedEntrega?.image ?? null;
       if (!image) image = await buscarImagemGoogle(produto);
 
-      /* 🏪 VENDEDOR REAL (ETIQUETA — CORRETO) */
       const vendedor =
         order.order_items?.[0]?.seller?.nickname ||
         order.seller?.nickname ||
@@ -314,6 +321,7 @@ app.get("/entregas", async (req, res) => {
         image,
         quantidade,
         vendedor,
+        centro_custo: cachedEntrega?.centro_custo ?? null, // 🔥 AQUI
         status_pedido: order.status,
         valor: order.total_amount,
         data_compra: order.date_created,
@@ -327,16 +335,33 @@ app.get("/entregas", async (req, res) => {
     const entregasUnicas = Array.from(entregasMap.values());
 
     /* =======================
-       5️⃣ ATUALIZA CACHE
+       5️⃣ ATUALIZA CACHE (SEM PERDER DADOS)
     ======================= */
-    await Entrega.deleteMany({});
-    await Entrega.insertMany(entregasUnicas);
+    await Entrega.bulkWrite(
+      entregasUnicas.map(e => ({
+        updateOne: {
+          filter: { pedido_id: e.pedido_id },
+          update: { $set: e },
+          upsert: true
+        }
+      }))
+    );
 
-    const total = entregasUnicas.length;
+    let entregasFiltradas = entregasUnicas;
+
+    if (centroCustoFiltro === "pendente") {
+      entregasFiltradas = entregasFiltradas.filter(e => !e.centro_custo);
+    }
+
+    if (centroCustoFiltro === "definido") {
+      entregasFiltradas = entregasFiltradas.filter(e => e.centro_custo);
+    }
+
+    const total = entregasFiltradas.length;
     const totalPages = Math.ceil(total / PER_PAGE);
-    const paginated = entregasUnicas.slice(skip, skip + PER_PAGE);
+    const paginated = entregasFiltradas.slice(skip, skip + PER_PAGE);
 
-    console.log("💾 Cache atualizado com vendedor REAL, imagens e quantidade");
+    console.log("💾 Cache atualizado SEM perder centro de custo");
 
     res.json({
       page,
@@ -375,6 +400,67 @@ app.get("/public/entregas", async (req, res) => {
     });
   }
 });
+
+app.patch("/entregas/:id/centro-custo", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { centro_custo } = req.body;
+
+    if (!centro_custo) {
+      return res.status(400).json({ error: "Centro de custo obrigatório" });
+    }
+
+    const entrega = await Entrega.findByIdAndUpdate(
+      id,
+      { centro_custo },
+      { new: true }
+    );
+
+    res.json(entrega);
+  } catch (err) {
+    res.status(500).json({
+      error: "Erro ao salvar centro de custo",
+      details: err.message
+    });
+  }
+});
+
+app.put("/entregas/:pedido_id/centro-custo", async (req, res) => {
+  try {
+    const { pedido_id } = req.params;
+    const { centro_custo } = req.body;
+
+    if (!centro_custo || !centro_custo.trim()) {
+      return res.status(400).json({
+        error: "Centro de custo é obrigatório"
+      });
+    }
+
+    const entrega = await Entrega.findOneAndUpdate(
+      { pedido_id: Number(pedido_id) },
+      { centro_custo: centro_custo.trim() },
+      { new: true }
+    );
+
+    if (!entrega) {
+      return res.status(404).json({
+        error: "Entrega não encontrada"
+      });
+    }
+
+    res.json({
+      message: "Centro de custo salvo com sucesso",
+      entrega
+    });
+
+  } catch (err) {
+    console.error("Erro ao salvar centro de custo:", err);
+    res.status(500).json({
+      error: "Erro ao salvar centro de custo"
+    });
+  }
+});
+
 
 const startCron = require("./src/cron/updateEntregas");
 startCron();

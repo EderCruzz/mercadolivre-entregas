@@ -4,21 +4,26 @@ const EntregaSchema = new mongoose.Schema(
   {
     pedido_id: Number,
     produto: String,
-
-    image: {
-      type: String,
-      default: null
-    },
+    image: String,
 
     vendedor: String,
     quantidade: String,
+
     status_pedido: String,
     status_entrega: String,
+
     data_entrega: Date,
     data_compra: Date,
+
     valor: Number,
     transportadora: String,
-    rastreio: String
+    rastreio: String,
+
+    // 🆕 NOVO CAMPO
+    centro_custo: {
+      type: String,
+      default: null
+    }
   },
   { timestamps: true }
 );

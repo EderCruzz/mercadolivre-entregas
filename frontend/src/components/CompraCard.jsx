@@ -1,7 +1,9 @@
+import { useState } from "react";
+import api from "../services/api";
 import "./CompraCard.css";
 import noImage from "../assets/no-image.jpg";
 
-export default function CompraCard({ compra }) {
+export default function CompraCard({ compra, view, onAtualizar }) {
   const {
     produto,
     image,
@@ -10,7 +12,11 @@ export default function CompraCard({ compra }) {
     data_compra,
     data_entrega,
     vendedor,
+    centro_custo,
+    pedido_id
   } = compra;
+
+  const [centro, setCentro] = useState("");
 
   const statusMap = {
     delivered: { label: "Entregue", class: "green" },
@@ -22,6 +28,20 @@ export default function CompraCard({ compra }) {
     label: "Em preparação",
     class: "gray",
   };
+
+  async function salvarCentroCusto() {
+    if (!centro.trim()) return;
+
+    try {
+      await api.put(`/entregas/${pedido_id}/centro-custo`, {
+        centro_custo: centro
+      });
+
+      onAtualizar(); // 🔄 recarrega lista
+    } catch (err) {
+      console.error("Erro ao salvar centro de custo", err);
+    }
+  }
 
   return (
     <div className="card">
@@ -46,6 +66,28 @@ export default function CompraCard({ compra }) {
         <p>
           Quantidade: <strong>{quantidade}</strong>
         </p>
+
+        {/* 🔥 RENDER CONDICIONAL (AQUI) */}
+        {view === "pendente" && (
+          <div className="centro-custo-form">
+            <label>Centro de custo:</label>
+            <input
+              type="text"
+              value={centro}
+              onChange={e => setCentro(e.target.value)}
+              placeholder="Ex: OBRA, ESTOQUE, ESCRITÓRIO"
+            />
+            <button onClick={salvarCentroCusto}>
+              Enviar
+            </button>
+          </div>
+        )}
+
+        {view === "definido" && (
+          <p>
+            Centro de custo: <strong>{centro_custo}</strong>
+          </p>
+        )}
 
         {data_entrega && (
           <p>
