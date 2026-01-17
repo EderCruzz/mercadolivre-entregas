@@ -59,3 +59,22 @@
   font-weight: bold;
   color: #1a73e8;
 }
+
+.status-badge {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-entregue {
+  background-color: #d4f8d4;
+  color: #1b7a1b;
+}
+
+.status-enviado {
+  background-color: #dbeafe;
+  color: #1e40af;
+}

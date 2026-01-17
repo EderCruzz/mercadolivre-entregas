@@ -25,29 +25,77 @@ function App() {
     if (view === "classificados") url += "&centro_custo=definido&recebido=nao";
     if (view === "entregues") url += "&recebido=sim";
 
-    const res = await api.get(url);
-    setCompras(res.data.data);
-    setTotalPages(res.data.totalPages);
+    try {
+      const res = await api.get(url);
+      setCompras(res.data.data);
+      setTotalPages(res.data.totalPages);
+    } catch (err) {
+      console.error("Erro ao carregar compras:", err);
+    }
   }
 
   return (
     <div className="container">
       <h1>📦 Minhas Compras</h1>
 
+      {/* 🔀 ABAS */}
       <div className="tabs">
-        <button onClick={() => setView("triagem")}>📝 Triagem</button>
-        <button onClick={() => setView("classificados")}>📦 Classificados</button>
-        <button onClick={() => setView("entregues")}>✅ Entregues</button>
+        <button
+          className={view === "triagem" ? "active" : ""}
+          onClick={() => setView("triagem")}
+        >
+          📝 Triagem
+        </button>
+
+        <button
+          className={view === "classificados" ? "active" : ""}
+          onClick={() => setView("classificados")}
+        >
+          📦 Classificados
+        </button>
+
+        <button
+          className={view === "entregues" ? "active" : ""}
+          onClick={() => setView("entregues")}
+        >
+          ✅ Entregues
+        </button>
       </div>
 
-      {compras.map(compra => (
-        <CompraCard
-          key={compra.pedido_id}
-          compra={compra}
-          view={view}
-          onAtualizar={() => carregarCompras(page)}
-        />
-      ))}
+      {/* LISTA */}
+      <div className="cards-wrapper">
+        {compras.map(compra => (
+          <CompraCard
+            key={compra.pedido_id}
+            compra={compra}
+            view={view}
+            onAtualizar={() => carregarCompras(page)}
+          />
+        ))}
+      </div>
+
+      {/* PAGINAÇÃO */}
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button
+            onClick={() => setPage(p => Math.max(p - 1, 1))}
+            disabled={page === 1}
+          >
+            ⬅ Anterior
+          </button>
+
+          <span>
+            Página {page} de {totalPages}
+          </span>
+
+          <button
+            onClick={() => setPage(p => Math.min(p + 1, totalPages))}
+            disabled={page === totalPages}
+          >
+            Próxima ➡
+          </button>
+        </div>
+      )}
     </div>
   );
 }
