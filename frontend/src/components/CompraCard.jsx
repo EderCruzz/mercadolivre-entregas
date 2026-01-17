@@ -28,27 +28,39 @@ export default function CompraCard({ compra, view, onAtualizar }) {
   }
 
   return (
-    <div className="card">
-      <img src={compra.image || noImage} alt={compra.produto} />
+  <div className="card">
+    <div className="card-image">
+      <img
+        src={compra.image || noImage}
+        alt={compra.produto}
+      />
+    </div>
 
-      <div className="info">
-        <h3>{compra.produto}</h3>
-        <p>Quantidade: {compra.quantidade}</p>
+    <div className="card-info">
+      <h3>{compra.produto}</h3>
 
-        {view === "triagem" && (
-          <>
-            <input
-              placeholder="Centro de custo"
-              value={centro}
-              onChange={e => setCentro(e.target.value)}
-            />
-            <button onClick={salvarCentroCusto}>Enviar</button>
-          </>
-        )}
+      <p>Quantidade: <strong>{compra.quantidade}</strong></p>
 
-        {view === "classificados" && (
-          <>
-            <p>Centro de custo: <strong>{compra.centro_custo}</strong></p>
+      {view === "triagem" && (
+        <div className="form-row">
+          <input
+            placeholder="Centro de custo"
+            value={centro}
+            onChange={e => setCentro(e.target.value)}
+          />
+          <button onClick={salvarCentroCusto}>
+            Enviar
+          </button>
+        </div>
+      )}
+
+      {view === "classificados" && (
+        <>
+          <p>
+            Centro de custo: <strong>{compra.centro_custo}</strong>
+          </p>
+
+          <div className="form-row">
             <input
               placeholder="Conferente"
               value={conferente}
@@ -57,22 +69,26 @@ export default function CompraCard({ compra, view, onAtualizar }) {
             <button onClick={confirmarRecebimento}>
               Confirmar recebimento
             </button>
-          </>
-        )}
+          </div>
+        </>
+      )}
 
-        {view === "entregues" && (
-          <>
-            <p>Centro de custo: <strong>{compra.centro_custo}</strong></p>
-            <p>Conferente: <strong>{compra.conferente}</strong></p>
-            <p>
-              Data:{" "}
-              {new Date(compra.data_recebimento).toLocaleDateString("pt-BR")}
-            </p>
-          </>
-        )}
-      </div>
-
-      <div className="seller">{compra.vendedor}</div>
+      {view === "entregues" && (
+        <>
+          <p>Centro de custo: <strong>{compra.centro_custo}</strong></p>
+          <p>Conferente: <strong>{compra.conferente}</strong></p>
+          <p>
+            Data:{" "}
+            {new Date(compra.data_recebimento).toLocaleDateString("pt-BR")}
+          </p>
+        </>
+      )}
     </div>
-  );
+
+    <div className="card-seller">
+      {compra.vendedor}
+    </div>
+  </div>
+);
+
 }
