@@ -242,15 +242,30 @@ app.get("/entregas", async (req, res) => {
 
     for (const order of ordersResponse.data.results) {
       const cachedEntrega = cache.find(c => c.pedido_id === order.id);
+      const item = order.order_items?.[0];
+
+      const produto = item?.item?.title || "Produto não identificado";
+
+      /* 🏪 VENDEDOR (fallback forte) */
+      const vendedor =
+        item?.seller?.nickname ||
+        order.seller?.nickname ||
+        cachedEntrega?.vendedor ||
+        "Vendedor não identificado";
+
+      /* 🖼️ IMAGEM (preserva cache, mas não perde) */
+      let image = cachedEntrega?.image ?? null;
+
+      if (!image && item?.item?.thumbnail) {
+        image = item.item.thumbnail;
+      }
 
       entregasMap.set(order.id, {
         pedido_id: order.id,
-        produto: order.order_items?.[0]?.item?.title,
-        image: cachedEntrega?.image ?? null,
-        quantidade: order.order_items?.[0]?.quantity ?? 1,
-        vendedor:
-          order.order_items?.[0]?.seller?.nickname ||
-          cachedEntrega?.vendedor,
+        produto,
+        image,
+        quantidade: item?.quantity ?? 1,
+        vendedor,
         centro_custo: cachedEntrega?.centro_custo ?? null,
         conferente: cachedEntrega?.conferente ?? null,
         data_recebimento: cachedEntrega?.data_recebimento ?? null,
@@ -261,6 +276,9 @@ app.get("/entregas", async (req, res) => {
 
     const entregasUnicas = Array.from(entregasMap.values());
 
+    /* =======================
+       3️⃣ ATUALIZA CACHE
+    ======================= */
     await Entrega.bulkWrite(
       entregasUnicas.map(e => ({
         updateOne: {

@@ -9,25 +9,20 @@ export default function CompraCard({ compra, view, onAtualizar }) {
 
   async function salvarCentroCusto() {
     if (!centro.trim()) return;
-
     await api.put(`/entregas/${compra.pedido_id}/centro-custo`, {
       centro_custo: centro
     });
-
     onAtualizar();
   }
 
   async function confirmarRecebimento() {
     if (!conferente.trim()) return;
-
     await api.put(`/entregas/${compra._id}/recebimento`, {
       conferente
     });
-
     onAtualizar();
   }
 
-  // 🔥 STATUS VISUAL
   const statusMap = {
     delivered: { label: "Entregue", className: "status-entregue" },
     shipped: { label: "Enviado", className: "status-enviado" },
@@ -41,36 +36,33 @@ export default function CompraCard({ compra, view, onAtualizar }) {
       : null);
 
   return (
-    <div className="card">
-      <div className="card-image">
-        <img
-          src={compra.image || noImage}
-          alt={compra.produto}
-        />
+    <div className="compra-card">
+      {/* IMAGEM */}
+      <div className="compra-card-image">
+        <img src={compra.image || noImage} alt={compra.produto} />
       </div>
 
-      <div className="card-info">
-        {/* ✅ STATUS NO TOPO */}
+      {/* INFORMAÇÕES */}
+      <div className="compra-card-info">
         {status && (
           <span className={`status-badge ${status.className}`}>
             {status.label}
           </span>
         )}
 
-        <h3>{compra.produto}</h3>
+        <h3 className="produto">{compra.produto}</h3>
 
-        <p>
+        <p className="meta">
           Compra em{" "}
           <strong>
             {new Date(compra.data_compra).toLocaleDateString("pt-BR")}
           </strong>
         </p>
 
-        <p>
+        <p className="meta">
           Quantidade: <strong>{compra.quantidade}</strong>
         </p>
 
-        {/* 🔹 TRIAGEM */}
         {view === "triagem" && (
           <div className="form-row">
             <input
@@ -78,16 +70,13 @@ export default function CompraCard({ compra, view, onAtualizar }) {
               value={centro}
               onChange={e => setCentro(e.target.value)}
             />
-            <button onClick={salvarCentroCusto}>
-              Enviar
-            </button>
+            <button onClick={salvarCentroCusto}>Salvar</button>
           </div>
         )}
 
-        {/* 🔹 CLASSIFICADOS */}
         {view === "classificados" && (
           <>
-            <p>
+            <p className="meta">
               Centro de custo: <strong>{compra.centro_custo}</strong>
             </p>
 
@@ -104,16 +93,15 @@ export default function CompraCard({ compra, view, onAtualizar }) {
           </>
         )}
 
-        {/* 🔹 ENTREGUES */}
         {view === "entregues" && (
           <>
-            <p>
+            <p className="meta">
               Centro de custo: <strong>{compra.centro_custo}</strong>
             </p>
-            <p>
+            <p className="meta">
               Conferente: <strong>{compra.conferente}</strong>
             </p>
-            <p>
+            <p className="meta">
               Recebido em{" "}
               <strong>
                 {new Date(compra.data_recebimento).toLocaleDateString("pt-BR")}{" "}
@@ -125,7 +113,8 @@ export default function CompraCard({ compra, view, onAtualizar }) {
         )}
       </div>
 
-      <div className="card-seller">
+      {/* VENDEDOR */}
+      <div className="compra-card-seller">
         {compra.vendedor}
       </div>
     </div>

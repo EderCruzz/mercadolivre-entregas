@@ -1,0 +1,26 @@
+.app-header {
+  background: #ffffff;
+  border-bottom: 4px solid #7CB518; /* verde CEPE */
+  padding: 16px 32px;
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo {
+  height: 36px;
+}
+
+.system-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f3d3d;
+}

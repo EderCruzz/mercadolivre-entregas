@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api from "./services/api";
 import CompraCard from "./components/CompraCard";
 import "./App.css";
+import Header from "./components/Header";
 
 function App() {
   const [compras, setCompras] = useState([]);
@@ -35,68 +36,73 @@ function App() {
   }
 
   return (
-    <div className="container">
-      <h1>📦 Minhas Compras</h1>
+    <>
+      <Header />
 
-      {/* 🔀 ABAS */}
-      <div className="tabs">
-        <button
-          className={view === "triagem" ? "active" : ""}
-          onClick={() => setView("triagem")}
-        >
-          📝 Triagem
-        </button>
+      <div className="container">
+        <h1 className="page-title">Minhas Compras</h1>
 
-        <button
-          className={view === "classificados" ? "active" : ""}
-          onClick={() => setView("classificados")}
-        >
-          📦 Classificados
-        </button>
-
-        <button
-          className={view === "entregues" ? "active" : ""}
-          onClick={() => setView("entregues")}
-        >
-          ✅ Entregues
-        </button>
-      </div>
-
-      {/* LISTA */}
-      <div className="cards-wrapper">
-        {compras.map(compra => (
-          <CompraCard
-            key={compra.pedido_id}
-            compra={compra}
-            view={view}
-            onAtualizar={() => carregarCompras(page)}
-          />
-        ))}
-      </div>
-
-      {/* PAGINAÇÃO */}
-      {totalPages > 1 && (
-        <div className="pagination">
+        {/* 🔀 ABAS */}
+        <div className="tabs">
           <button
-            onClick={() => setPage(p => Math.max(p - 1, 1))}
-            disabled={page === 1}
+            className={view === "triagem" ? "active" : ""}
+            onClick={() => setView("triagem")}
           >
-            ⬅ Anterior
+            Triagem
           </button>
 
-          <span>
-            Página {page} de {totalPages}
-          </span>
+          <button
+            className={view === "classificados" ? "active" : ""}
+            onClick={() => setView("classificados")}
+          >
+            Classificados
+          </button>
 
           <button
-            onClick={() => setPage(p => Math.min(p + 1, totalPages))}
-            disabled={page === totalPages}
+            className={view === "entregues" ? "active" : ""}
+            onClick={() => setView("entregues")}
           >
-            Próxima ➡
+            Entregues
           </button>
         </div>
-      )}
-    </div>
+
+        {/* LISTA */}
+        <div className="cards-wrapper">
+          {compras.map(compra => (
+            <CompraCard
+              key={compra.pedido_id}
+              compra={compra}
+              view={view}
+              onAtualizar={() => carregarCompras(page)}
+            />
+          ))}
+        </div>
+
+        {/* PAGINAÇÃO */}
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button
+              onClick={() => setPage(p => Math.max(p - 1, 1))}
+              disabled={page === 1}
+            >
+              ⬅ Anterior
+            </button>
+
+            <span>
+              Página {page} de {totalPages}
+            </span>
+
+            <button
+              onClick={() => setPage(p => Math.min(p + 1, totalPages))}
+              disabled={page === totalPages}
+            >
+              Próxima ➡
+            </button>
+          </div>
+        )}
+      </div>
+
+    </>
   );
 }
 
