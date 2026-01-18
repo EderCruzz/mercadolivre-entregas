@@ -214,7 +214,6 @@ app.get("/entregas", async (req, res) => {
       if (cacheAge < CACHE_TTL) {
         let entregasCache = cache;
 
-        // 🔹 FILTROS (SEM ALTERAR)
         if (centroCustoFiltro === "pendente") {
           entregasCache = entregasCache.filter(e => !e.centro_custo);
         }
@@ -231,16 +230,9 @@ app.get("/entregas", async (req, res) => {
           entregasCache = entregasCache.filter(e => !e.conferente);
         }
 
-        // 🔹 NORMALIZA DADOS CRÍTICOS (SEM API, SEM DB)
-        const entregasNormalizadas = entregasCache.map(e => ({
-          ...e.toObject(),
-          image: e.image || null, // frontend já trata fallback
-          vendedor: e.vendedor || "Vendedor não identificado"
-        }));
-
-        const total = entregasNormalizadas.length;
+        const total = entregasCache.length;
         const totalPages = Math.ceil(total / PER_PAGE);
-        const paginated = entregasNormalizadas.slice(skip, skip + PER_PAGE);
+        const paginated = entregasCache.slice(skip, skip + PER_PAGE);
 
         return res.json({
           page,
@@ -253,7 +245,7 @@ app.get("/entregas", async (req, res) => {
     }
 
     /* =======================
-       2️⃣ API MERCADO LIVRE (cache vencido)
+       2️⃣ API MERCADO LIVRE
     ======================= */
     const accessToken = await getToken();
 
@@ -277,18 +269,22 @@ app.get("/entregas", async (req, res) => {
 
       const produto = item?.item?.title || "Produto não identificado";
 
+      /* 🏪 VENDEDOR (fallback forte) */
       const vendedor =
         item?.seller?.nickname ||
         order.seller?.nickname ||
         cachedEntrega?.vendedor ||
         "Vendedor não identificado";
 
+      /* 🖼️ IMAGEM (preserva cache, mas não perde) */
       let image = cachedEntrega?.image ?? null;
 
+      // Thumbnail do Mercado Livre
       if (!image && item?.item?.thumbnail) {
         image = item.item.thumbnail;
       }
 
+      // Fallback Google Images (último recurso)
       if (!image) {
         image = await buscarImagemGoogle(produto);
       }
@@ -331,7 +327,7 @@ app.get("/entregas", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ ERRO /entregas:", err);
+    console.error(err);
     res.status(500).json({ error: "Erro ao buscar entregas" });
   }
 });
