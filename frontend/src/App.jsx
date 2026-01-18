@@ -9,6 +9,7 @@ function App() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [view, setView] = useState("triagem");
+  const [animating, setAnimating] = useState(false);
 
   useEffect(() => {
     setPage(1);
@@ -20,20 +21,32 @@ function App() {
   }, [page]);
 
   async function carregarCompras(pagina) {
-    let url = `/entregas?page=${pagina}`;
+  let url = `/entregas?page=${pagina}`;
 
-    if (view === "triagem") url += "&centro_custo=pendente";
-    if (view === "classificados") url += "&centro_custo=definido&recebido=nao";
-    if (view === "entregues") url += "&recebido=sim";
+  if (view === "triagem") url += "&centro_custo=pendente";
+  if (view === "classificados") url += "&centro_custo=definido&recebido=nao";
+  if (view === "entregues") url += "&recebido=sim";
 
-    try {
+  try {
+    setAnimating(true);
+
+    // ⏳ deixa o fade-out acontecer
+    setTimeout(async () => {
       const res = await api.get(url);
       setCompras(res.data.data);
       setTotalPages(res.data.totalPages);
-    } catch (err) {
-      console.error("Erro ao carregar compras:", err);
-    }
+
+      // ⏳ pequena pausa pra entrada suave
+      setTimeout(() => {
+        setAnimating(false);
+      }, 50);
+
+    }, 200);
+  } catch (err) {
+    console.error("Erro ao carregar compras:", err);
+    setAnimating(false);
   }
+}
 
   return (
     <>
@@ -67,7 +80,7 @@ function App() {
         </div>
 
         {/* LISTA */}
-        <div className="cards-wrapper">
+        <div className={`cards-wrapper ${animating ? "fade-out" : "fade-in"}`}>
           {compras.map(compra => (
             <CompraCard
               key={compra.pedido_id}

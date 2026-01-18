@@ -91,3 +91,18 @@
   background-color: #7CB518;
   border-radius: 2px 2px 0 0;
 }
+
+.cards-wrapper {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.cards-wrapper.fade-out {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+
+.cards-wrapper.fade-in {
+  opacity: 1;
+  transform: translateY(0);
+}
