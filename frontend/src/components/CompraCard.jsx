@@ -36,7 +36,7 @@ export default function CompraCard({ compra, view, onAtualizar }) {
       : null);
 
   return (
-    <div className="compra-card">
+    <div className={`compra-card ${view}`}>
       {/* IMAGEM */}
       <div className="compra-card-image">
         <img src={compra.image || noImage} alt={compra.produto} />
