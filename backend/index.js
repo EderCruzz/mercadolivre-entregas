@@ -189,6 +189,11 @@ async function buscarImagemGoogle(produto) {
       null
     );
   } catch (err) {
+    if (err.response?.status === 429) {
+      console.warn("⚠️ SerpAPI: limite atingido");
+      return null;
+    }
+
     console.error("Erro Google Images:", err.message);
     return null;
   }
@@ -284,8 +289,8 @@ app.get("/entregas", async (req, res) => {
         image = item.item.thumbnail;
       }
 
-      // Fallback Google Images (último recurso)
-      if (!image) {
+      // 🔒 Busca no Google SÓ se nunca teve imagem antes
+      if (!cachedEntrega?.image && !image) {
         image = await buscarImagemGoogle(produto);
       }
 
