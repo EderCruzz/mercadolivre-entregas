@@ -309,28 +309,36 @@ app.get("/entregas", async (req, res) => {
        3️⃣ ATUALIZA CACHE
     ======================= */
     await Entrega.bulkWrite(
-      entregasUnicas.map(e => ({
-        updateOne: {
-          filter: { pedido_id: e.pedido_id },
-          update: {
-            $set: {
-              pedido_id: e.pedido_id,
-              produto: e.produto,
-              quantidade: e.quantidade,
-              centro_custo: e.centro_custo,
-              conferente: e.conferente,
-              data_recebimento: e.data_recebimento,
-              status_pedido: e.status_pedido,
-              data_compra: e.data_compra
-            },
-            $setOnInsert: {
-              image: e.image,
-              vendedor: e.vendedor
-            }
-          },
-          upsert: true
+      entregasUnicas.map(e => {
+        const update = {
+          pedido_id: e.pedido_id,
+          produto: e.produto,
+          quantidade: e.quantidade,
+          centro_custo: e.centro_custo,
+          conferente: e.conferente,
+          data_recebimento: e.data_recebimento,
+          status_pedido: e.status_pedido,
+          data_compra: e.data_compra
+        };
+
+        // ✅ SÓ atualiza imagem se NÃO for null
+        if (e.image) {
+          update.image = e.image;
         }
-      }))
+
+        // ✅ SÓ atualiza vendedor se NÃO for null
+        if (e.vendedor) {
+          update.vendedor = e.vendedor;
+        }
+
+        return {
+          updateOne: {
+            filter: { pedido_id: e.pedido_id },
+            update: { $set: update },
+            upsert: true
+          }
+        };
+      })
     );
 
     res.json({
