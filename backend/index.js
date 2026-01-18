@@ -204,92 +204,130 @@ app.get("/entregas", async (req, res) => {
     const recebidoFiltro = req.query.recebido;
 
     /* =======================
-       1️⃣ CACHE BASE
+       1️⃣ CACHE
     ======================= */
     const cache = await Entrega.find().sort({ data_compra: -1 });
 
-    let entregasBase = cache;
+    if (cache.length > 0) {
+      const cacheAge = Date.now() - new Date(cache[0].updatedAt).getTime();
 
-    if (centroCustoFiltro === "pendente") {
-      entregasBase = entregasBase.filter(e => !e.centro_custo);
-    }
+      if (cacheAge < CACHE_TTL) {
+        let entregasCache = cache;
 
-    if (centroCustoFiltro === "definido") {
-      entregasBase = entregasBase.filter(e => e.centro_custo);
-    }
+        // 🔹 FILTROS (SEM ALTERAR)
+        if (centroCustoFiltro === "pendente") {
+          entregasCache = entregasCache.filter(e => !e.centro_custo);
+        }
 
-    if (recebidoFiltro === "sim") {
-      entregasBase = entregasBase.filter(e => e.conferente);
-    }
+        if (centroCustoFiltro === "definido") {
+          entregasCache = entregasCache.filter(e => e.centro_custo);
+        }
 
-    if (recebidoFiltro === "nao") {
-      entregasBase = entregasBase.filter(e => !e.conferente);
+        if (recebidoFiltro === "sim") {
+          entregasCache = entregasCache.filter(e => e.conferente);
+        }
+
+        if (recebidoFiltro === "nao") {
+          entregasCache = entregasCache.filter(e => !e.conferente);
+        }
+
+        // 🔹 NORMALIZA DADOS CRÍTICOS (SEM API, SEM DB)
+        const entregasNormalizadas = entregasCache.map(e => ({
+          ...e.toObject(),
+          image: e.image || null, // frontend já trata fallback
+          vendedor: e.vendedor || "Vendedor não identificado"
+        }));
+
+        const total = entregasNormalizadas.length;
+        const totalPages = Math.ceil(total / PER_PAGE);
+        const paginated = entregasNormalizadas.slice(skip, skip + PER_PAGE);
+
+        return res.json({
+          page,
+          perPage: PER_PAGE,
+          total,
+          totalPages,
+          data: paginated
+        });
+      }
     }
 
     /* =======================
-       2️⃣ GARANTE DADOS CRÍTICOS
+       2️⃣ API MERCADO LIVRE (cache vencido)
     ======================= */
     const accessToken = await getToken();
 
-    for (const entrega of entregasBase) {
-      let precisaSalvar = false;
+    const userResponse = await axios.get(
+      "https://api.mercadolibre.com/users/me",
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
 
-      // 🔹 VENDEDOR
-      if (!entrega.vendedor) {
-        try {
-          const orderRes = await axios.get(
-            `https://api.mercadolibre.com/orders/${entrega.pedido_id}`,
-            { headers: { Authorization: `Bearer ${accessToken}` } }
-          );
+    const buyerId = userResponse.data.id;
 
-          entrega.vendedor =
-            orderRes.data.order_items?.[0]?.seller?.nickname ||
-            orderRes.data.seller?.nickname ||
-            "Vendedor não identificado";
+    const ordersResponse = await axios.get(
+      `https://api.mercadolibre.com/orders/search?buyer=${buyerId}&sort=date_desc`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
 
-          precisaSalvar = true;
-        } catch {}
+    const entregasMap = new Map();
+
+    for (const order of ordersResponse.data.results) {
+      const cachedEntrega = cache.find(c => c.pedido_id === order.id);
+      const item = order.order_items?.[0];
+
+      const produto = item?.item?.title || "Produto não identificado";
+
+      const vendedor =
+        item?.seller?.nickname ||
+        order.seller?.nickname ||
+        cachedEntrega?.vendedor ||
+        "Vendedor não identificado";
+
+      let image = cachedEntrega?.image ?? null;
+
+      if (!image && item?.item?.thumbnail) {
+        image = item.item.thumbnail;
       }
 
-      // 🔹 IMAGEM
-      if (!entrega.image) {
-        let image = null;
-
-        try {
-          const orderRes = await axios.get(
-            `https://api.mercadolibre.com/orders/${entrega.pedido_id}`,
-            { headers: { Authorization: `Bearer ${accessToken}` } }
-          );
-
-          image = orderRes.data.order_items?.[0]?.item?.thumbnail || null;
-        } catch {}
-
-        if (!image) {
-          image = await buscarImagemGoogle(entrega.produto);
-        }
-
-        entrega.image = image;
-        precisaSalvar = true;
+      if (!image) {
+        image = await buscarImagemGoogle(produto);
       }
 
-      if (precisaSalvar) {
-        await Entrega.updateOne(
-          { _id: entrega._id },
-          { $set: { image: entrega.image, vendedor: entrega.vendedor } }
-        );
-      }
+      entregasMap.set(order.id, {
+        pedido_id: order.id,
+        produto,
+        image,
+        quantidade: item?.quantity ?? 1,
+        vendedor,
+        centro_custo: cachedEntrega?.centro_custo ?? null,
+        conferente: cachedEntrega?.conferente ?? null,
+        data_recebimento: cachedEntrega?.data_recebimento ?? null,
+        status_pedido: order.status,
+        data_compra: order.date_created
+      });
     }
 
-    const total = entregasBase.length;
-    const totalPages = Math.ceil(total / PER_PAGE);
-    const paginated = entregasBase.slice(skip, skip + PER_PAGE);
+    const entregasUnicas = Array.from(entregasMap.values());
+
+    /* =======================
+       3️⃣ ATUALIZA CACHE
+    ======================= */
+    await Entrega.bulkWrite(
+      entregasUnicas.map(e => ({
+        updateOne: {
+          filter: { pedido_id: e.pedido_id },
+          update: { $set: e },
+          upsert: true
+        }
+      }))
+    );
 
     res.json({
       page,
       perPage: PER_PAGE,
-      total,
-      totalPages,
-      data: paginated
+      total: entregasUnicas.length,
+      totalPages: Math.ceil(entregasUnicas.length / PER_PAGE),
+      data: entregasUnicas.slice(skip, skip + PER_PAGE)
     });
 
   } catch (err) {
