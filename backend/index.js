@@ -171,6 +171,29 @@ app.get('/ml/orders', async (req, res) => {
   }
 });
 
+async function buscarImagemGoogle(produto) {
+  try {
+    const response = await axios.get("https://serpapi.com/search.json", {
+      params: {
+        engine: "google_images",
+        q: produto,
+        api_key: process.env.SERPAPI_KEY,
+        ijn: 0
+      },
+      timeout: 15000
+    });
+
+    return (
+      response.data.images_results?.[0]?.original ||
+      response.data.images_results?.[0]?.thumbnail ||
+      null
+    );
+  } catch (err) {
+    console.error("Erro Google Images:", err.message);
+    return null;
+  }
+}
+
 app.get("/entregas", async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page) || 1, 1);
@@ -256,8 +279,14 @@ app.get("/entregas", async (req, res) => {
       /* 🖼️ IMAGEM (preserva cache, mas não perde) */
       let image = cachedEntrega?.image ?? null;
 
+      // Thumbnail do Mercado Livre
       if (!image && item?.item?.thumbnail) {
         image = item.item.thumbnail;
+      }
+
+      // Fallback Google Images (último recurso)
+      if (!image) {
+        image = await buscarImagemGoogle(produto);
       }
 
       entregasMap.set(order.id, {
