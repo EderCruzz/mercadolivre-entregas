@@ -197,7 +197,7 @@ async function buscarImagemGoogle(produto) {
 app.get("/entregas", async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page) || 1, 1);
-    const PER_PAGE = 10;
+    const PER_PAGE = 20;
     const skip = (page - 1) * PER_PAGE;
 
     const centroCustoFiltro = req.query.centro_custo;
