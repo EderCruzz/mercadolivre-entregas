@@ -312,7 +312,22 @@ app.get("/entregas", async (req, res) => {
       entregasUnicas.map(e => ({
         updateOne: {
           filter: { pedido_id: e.pedido_id },
-          update: { $set: e },
+          update: {
+            $set: {
+              pedido_id: e.pedido_id,
+              produto: e.produto,
+              quantidade: e.quantidade,
+              centro_custo: e.centro_custo,
+              conferente: e.conferente,
+              data_recebimento: e.data_recebimento,
+              status_pedido: e.status_pedido,
+              data_compra: e.data_compra
+            },
+            $setOnInsert: {
+              image: e.image,
+              vendedor: e.vendedor
+            }
+          },
           upsert: true
         }
       }))
