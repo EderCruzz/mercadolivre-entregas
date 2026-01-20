@@ -191,11 +191,35 @@ async function buscarImagemGoogle(produto) {
     );
   } catch (err) {
     if (err.response?.status === 429) {
-      console.warn("⚠️ SerpAPI: limite atingido");
-      return null;
+      console.warn("⚠️ SerpAPI: limite atingido (429)");
+      return "__RATE_LIMIT__";
     }
 
     console.error("Erro Google Images:", err.message);
+    return null;
+  }
+}
+
+async function buscarImagemUnsplash(produto) {
+  try {
+    const response = await axios.get(
+      "https://api.unsplash.com/search/photos",
+      {
+        params: {
+          query: produto,
+          per_page: 1,
+          orientation: "squarish"
+        },
+        headers: {
+          Authorization: `Client-ID ${process.env.UNSPLASH_ACCESS_KEY}`
+        },
+        timeout: 10000
+      }
+    );
+
+    return response.data.results?.[0]?.urls?.small || null;
+  } catch (err) {
+    console.warn("⚠️ Unsplash falhou:", err.message);
     return null;
   }
 }
@@ -292,7 +316,14 @@ app.get("/entregas", async (req, res) => {
 
       // 🔒 Busca no Google SÓ se nunca teve imagem antes
       if (!cachedEntrega?.image && !image) {
-        image = await buscarImagemGoogle(produto);
+        const googleImage = await buscarImagemGoogle(produto);
+
+        if (googleImage === "__RATE_LIMIT__" || !googleImage) {
+          // 🔁 fallback Unsplash
+          image = await buscarImagemUnsplash(produto);
+        } else {
+          image = googleImage;
+        }
       }
 
       entregasMap.set(order.id, {
