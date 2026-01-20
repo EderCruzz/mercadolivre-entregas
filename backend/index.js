@@ -200,6 +200,28 @@ async function buscarImagemGoogle(produto) {
   }
 }
 
+async function buscarPrevisaoEntrega(shippingId, accessToken) {
+  try {
+    const res = await axios.get(
+      `https://api.mercadolibre.com/shipments/${shippingId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    return (
+      res.data.promised_delivery_date ||
+      res.data.estimated_delivery_date?.date ||
+      null
+    );
+  } catch (err) {
+    console.warn("⚠️ Erro ao buscar previsão de entrega:", err.message);
+    return null;
+  }
+}
+
 app.get("/entregas", async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page) || 1, 1);
@@ -312,6 +334,18 @@ app.get("/entregas", async (req, res) => {
         image = await buscarImagemGoogle(produto);
       }
 
+      /* 📦 PREVISÃO DE ENTREGA */
+      const shippingId = order.shipping?.id;
+      let previsao_entrega = cachedEntrega?.previsao_entrega ?? null;
+
+      // busca só se ainda não existir no cache
+      if (!previsao_entrega && shippingId) {
+        previsao_entrega = await buscarPrevisaoEntrega(
+          shippingId,
+          accessToken
+        );
+      }
+
       entregasMap.set(order.id, {
         pedido_id: order.id,
         produto,
@@ -321,6 +355,7 @@ app.get("/entregas", async (req, res) => {
         centro_custo: cachedEntrega?.centro_custo ?? null,
         conferente: cachedEntrega?.conferente ?? null,
         data_recebimento: cachedEntrega?.data_recebimento ?? null,
+        previsao_entrega, // 👈 NOVO CAMPO
         status_pedido: order.status,
         data_compra: order.date_created
       });
@@ -362,7 +397,8 @@ app.get("/entregas", async (req, res) => {
           conferente: e.conferente,
           data_recebimento: e.data_recebimento,
           status_pedido: e.status_pedido,
-          data_compra: e.data_compra
+          data_compra: e.data_compra,
+          previsao_entrega: e.previsao_entrega // 👈 AQUI
         };
 
         // ✅ SÓ atualiza imagem se NÃO for null
