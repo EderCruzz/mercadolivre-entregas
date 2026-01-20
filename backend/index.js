@@ -269,6 +269,10 @@ app.get("/entregas", async (req, res) => {
 
     const entregasMap = new Map();
 
+    const hoje = new Date();
+    const limiteBuscaImagem = new Date();
+    limiteBuscaImagem.setDate(hoje.getDate() - 30);
+
     for (const order of ordersResponse.data.results) {
       const cachedEntrega = cache.find(c => c.pedido_id === order.id);
       const item = order.order_items?.[0];
@@ -291,7 +295,12 @@ app.get("/entregas", async (req, res) => {
       }
 
       // 🔒 Busca no Google SÓ se nunca teve imagem antes
-      if (!cachedEntrega?.image && !image) {
+      const dataCompra = new Date(order.date_created);
+
+      const podeBuscarImagem =
+        dataCompra >= limiteBuscaImagem && !cachedEntrega?.image && !image;
+
+      if (podeBuscarImagem) {
         image = await buscarImagemGoogle(produto);
       }
 
