@@ -22,7 +22,7 @@ const Entrega = require("./src/models/Entrega");
 const getToken = require("./src/utils/getToken");
 
 
-const CACHE_TTL = 1000 * 60 * 30; // 30 minutos
+const CACHE_TTL = 1000 * 60 * 1440; // 1 dia
 
 async function getAccessTokenFromDB() {
   const token = await Token.findOne().sort({ createdAt: -1 });
@@ -34,27 +34,6 @@ async function getAccessTokenFromDB() {
   return token.access_token;
 }
 
-async function buscarImagemMercadoLivre(itemId, accessToken) {
-  try {
-    const response = await axios.get(
-      `https://api.mercadolibre.com/items/${itemId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
-      }
-    );
-
-    return (
-      response.data.pictures?.[0]?.secure_url ||
-      response.data.thumbnail ||
-      null
-    );
-  } catch (err) {
-    console.warn("⚠️ Erro ao buscar imagem ML:", itemId);
-    return null;
-  }
-}
 
 /* =======================
    Middlewares
@@ -306,14 +285,14 @@ app.get("/entregas", async (req, res) => {
       /* 🖼️ IMAGEM (preserva cache, mas não perde) */
       let image = cachedEntrega?.image ?? null;
 
-      // 1️⃣ Tenta imagem oficial do ML
-      if (!image && item?.item?.id) {
-        image = await buscarImagemMercadoLivre(item.item.id, accessToken);
+      // Thumbnail do Mercado Livre
+      if (!image && item?.item?.thumbnail) {
+        image = item.item.thumbnail;
       }
 
-      // 2️⃣ Fallback EXTREMO (opcional)
-      if (!image) {
-        image = null; // mantém noImage no front
+      // 🔒 Busca no Google SÓ se nunca teve imagem antes
+      if (!cachedEntrega?.image && !image) {
+        image = await buscarImagemGoogle(produto);
       }
 
       entregasMap.set(order.id, {
