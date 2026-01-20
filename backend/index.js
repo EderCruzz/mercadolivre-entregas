@@ -212,6 +212,8 @@ app.get("/entregas", async (req, res) => {
     /* =======================
        1️⃣ CACHE
     ======================= */
+
+    /*
     const cache = await Entrega.find().sort({ data_compra: -1 });
 
     if (cache.length > 0) {
@@ -249,6 +251,7 @@ app.get("/entregas", async (req, res) => {
         });
       }
     }
+      */
 
     /* =======================
        2️⃣ API MERCADO LIVRE
@@ -477,8 +480,8 @@ app.put("/entregas/:id/recebimento", async (req, res) => {
   }
 });
 
-const startCron = require("./src/cron/updateEntregas");
-startCron();
+// const startCron = require("./src/cron/updateEntregas");
+// startCron();
 
 /* =======================
    Server
