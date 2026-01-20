@@ -329,6 +329,27 @@ app.get("/entregas", async (req, res) => {
     const entregasUnicas = Array.from(entregasMap.values());
 
     /* =======================
+   FILTRO POR ABA (VIEW)
+    ======================= */
+    const view = req.query.view;
+
+    let entregasFiltradas = entregasUnicas;
+
+    if (view === "triagem") {
+      entregasFiltradas = entregasUnicas.filter(e => !e.centro_custo);
+    }
+
+    if (view === "classificados") {
+      entregasFiltradas = entregasUnicas.filter(
+        e => e.centro_custo && !e.conferente
+      );
+    }
+
+    if (view === "entregues") {
+      entregasFiltradas = entregasUnicas.filter(e => e.conferente);
+    }
+
+    /* =======================
        3️⃣ ATUALIZA CACHE
     ======================= */
     await Entrega.bulkWrite(
@@ -367,9 +388,9 @@ app.get("/entregas", async (req, res) => {
     res.json({
       page,
       perPage: PER_PAGE,
-      total: entregasUnicas.length,
-      totalPages: Math.ceil(entregasUnicas.length / PER_PAGE),
-      data: entregasUnicas.slice(skip, skip + PER_PAGE)
+      total: entregasFiltradas.length,
+      totalPages: Math.ceil(entregasFiltradas.length / PER_PAGE),
+      data: entregasFiltradas.slice(skip, skip + PER_PAGE)
     });
 
   } catch (err) {
