@@ -271,7 +271,7 @@ app.get("/entregas", async (req, res) => {
 
     const hoje = new Date();
     const limiteBuscaImagem = new Date();
-    limiteBuscaImagem.setDate(hoje.getDate() - 30);
+    limiteBuscaImagem.setDate(hoje.getDate() - 40);
 
     for (const order of ordersResponse.data.results) {
       const cachedEntrega = cache.find(c => c.pedido_id === order.id);
