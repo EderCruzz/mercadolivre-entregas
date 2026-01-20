@@ -7,6 +7,7 @@
   border-radius: 12px;
   background: #fff;
   align-items: flex-start;
+  box-sizing: border-box;
 }
 
 /* ===============================
@@ -31,14 +32,15 @@
 .compra-card-info {
   display: flex;
   flex-direction: column;
-  gap: 4px; /* 🔽 menor */
+  gap: 4px;
+  min-width: 0; /* 🔥 evita overflow em grid */
 }
 
 .compra-card-info .produto {
   font-size: 16px;
   font-weight: 600;
   color: #1f3d3d;
-  line-height: 1.25; /* 🔽 mais compacto */
+  line-height: 1.25;
 }
 
 .compra-card-info .meta {
@@ -51,20 +53,21 @@
 ================================ */
 .form-row {
   display: flex;
-  gap: 6px;        /* 🔽 menor */
-  margin-top: 6px; /* 🔽 menor */
+  gap: 6px;
+  margin-top: 6px;
 }
 
 .form-row input {
   flex: 1;
-  padding: 6px 8px; /* 🔽 menor */
+  padding: 6px 8px;
   border-radius: 6px;
   border: 1px solid #ccc;
   font-size: 13px;
+  min-width: 0; /* 🔥 evita overflow */
 }
 
 .form-row button {
-  padding: 6px 12px; /* 🔽 menor */
+  padding: 6px 12px;
   border-radius: 6px;
   border: none;
   background: #7CB518;
@@ -85,21 +88,29 @@
   font-weight: 600;
   color: #1976d2;
   font-size: 14px;
-  white-space: nowrap;
+  white-space: nowrap; /* desktop ok */
 }
 
 /* ===============================
    📱 MOBILE
 ================================ */
 @media (max-width: 768px) {
+
   .compra-card {
     display: grid;
-    grid-template-columns: 72px 1fr; /* 🔽 imagem menor */
-    gap: 8px;                        /* 🔽 principal */
-    padding: 12px;                  /* 🔽 */
+    grid-template-columns: 72px 1fr;
+    gap: 8px;
+    padding: 12px;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden; /* 🔥 trava vazamento */
   }
 
   /* IMAGEM */
+  .compra-card-image {
+    margin-top: 28px;
+  }
+
   .compra-card-image img {
     width: 64px;
     max-height: 64px;
@@ -107,7 +118,8 @@
 
   /* INFO */
   .compra-card-info {
-    gap: 3px; /* 🔽 bem compacto */
+    gap: 3px;
+    min-width: 0; /* 🔥 ESSENCIAL */
   }
 
   .compra-card-info .produto {
@@ -119,64 +131,55 @@
     font-size: 12px;
   }
 
-  /* FORMULÁRIO EM LINHA */
-  .form-row {
+  /* FORMULÁRIO TRIAGEM */
+  .compra-card.triagem .form-row {
     grid-column: 1 / -1;
+    width: 100%;
     gap: 6px;
-    margin-top: 4px; /* 🔽 */
+    margin-top: 4px;
   }
 
-  .form-row input {
-    height: 36px;   /* 🔽 */
-    font-size: 13px;
+  .compra-card.triagem input,
+  .compra-card.triagem button {
+    max-width: 100%;
   }
 
-  .form-row button {
-    height: 36px;   /* 🔽 */
-    padding: 0 12px;
-    font-size: 13px;
-  }
-
-  /* VENDEDOR */
-  .compra-card-seller {
-    grid-column: 1 / -1;
-    margin-top: 4px; /* 🔽 */
-    text-align: left;
-    font-size: 11px;
-  }
-}
-
- /* Formulário sai do grid imagem/info */
+  /* CLASSIFICADOS → input em cima / botão embaixo */
   .compra-card.classificados .form-row {
-    grid-column: 1 / -1;       /* ocupa o card inteiro */
+    grid-column: 1 / -1;
     display: flex;
-    flex-direction: column;   /* input em cima / botão embaixo */
+    flex-direction: column;
     gap: 6px;
     margin-top: 10px;
   }
 
-  .compra-card.classificados .form-row input {
+  .compra-card.classificados .form-row input,
+  .compra-card.classificados .form-row button {
     width: 100%;
   }
 
   .compra-card.classificados .form-row button {
-    width: 100%;
     padding: 10px 14px;
     font-size: 13px;
-    line-height: 10px;
   }
 
+  /* REMOVE 3ª COLUNA NO MOBILE */
+  .compra-card.triagem,
   .compra-card.classificados,
   .compra-card.entregues {
-    grid-template-columns: 90px 1fr; /* remove 3ª coluna */
+    grid-template-columns: 72px 1fr;
   }
 
-  .compra-card.classificados {
-    align-items: flex-start;
+  /* VENDEDOR MOBILE (🔥 CAUSA DO BUG RESOLVIDA) */
+  .compra-card-seller {
+    grid-column: 1 / -1;
+    margin-top: 4px;
+    text-align: left;
+    font-size: 11px;
+    white-space: normal;       /* 🔥 REMOVE overflow */
+    word-break: break-word;
+    max-width: 100%;
   }
-
-  .compra-card-image {
-  margin-top: 50px;
 }
 
 /* ===============================
