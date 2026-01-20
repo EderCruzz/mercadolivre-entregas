@@ -17,9 +17,12 @@ export default function CompraCard({ compra, view, onAtualizar }) {
 
   async function confirmarRecebimento() {
     if (!conferente.trim()) return;
-    await api.put(`/entregas/${compra._id}/recebimento`, {
+
+    await api.put(`/entregas/${compra.pedido_id}/recebimento`, {
       conferente
     });
+
+    setConferente(""); // opcional, UX melhor
     onAtualizar();
   }
 

@@ -20,12 +20,8 @@ function App() {
     carregarCompras(page);
   }, [page]);
 
-  async function carregarCompras(pagina) {
-  let url = `/entregas?page=${pagina}`;
-
-  if (view === "triagem") url += "&centro_custo=pendente";
-  if (view === "classificados") url += "&centro_custo=definido&recebido=nao";
-  if (view === "entregues") url += "&recebido=sim";
+ async function carregarCompras(pagina) {
+  const url = `/entregas?page=${pagina}&view=${view}`;
 
   try {
     setAnimating(true);
@@ -33,6 +29,7 @@ function App() {
     // ⏳ deixa o fade-out acontecer
     setTimeout(async () => {
       const res = await api.get(url);
+
       setCompras(res.data.data);
       setTotalPages(res.data.totalPages);
 
