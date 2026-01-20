@@ -34,6 +34,28 @@ async function getAccessTokenFromDB() {
   return token.access_token;
 }
 
+async function buscarImagemMercadoLivre(itemId, accessToken) {
+  try {
+    const response = await axios.get(
+      `https://api.mercadolibre.com/items/${itemId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    return (
+      response.data.pictures?.[0]?.secure_url ||
+      response.data.thumbnail ||
+      null
+    );
+  } catch (err) {
+    console.warn("⚠️ Erro ao buscar imagem ML:", itemId);
+    return null;
+  }
+}
+
 /* =======================
    Middlewares
 ======================= */
@@ -284,14 +306,14 @@ app.get("/entregas", async (req, res) => {
       /* 🖼️ IMAGEM (preserva cache, mas não perde) */
       let image = cachedEntrega?.image ?? null;
 
-      // Thumbnail do Mercado Livre
-      if (!image && item?.item?.thumbnail) {
-        image = item.item.thumbnail;
+      // 1️⃣ Tenta imagem oficial do ML
+      if (!image && item?.item?.id) {
+        image = await buscarImagemMercadoLivre(item.item.id, accessToken);
       }
 
-      // 🔒 Busca no Google SÓ se nunca teve imagem antes
-      if (!cachedEntrega?.image && !image) {
-        image = await buscarImagemGoogle(produto);
+      // 2️⃣ Fallback EXTREMO (opcional)
+      if (!image) {
+        image = null; // mantém noImage no front
       }
 
       entregasMap.set(order.id, {
