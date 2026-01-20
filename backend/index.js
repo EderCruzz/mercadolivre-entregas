@@ -200,30 +200,6 @@ async function buscarImagemGoogle(produto) {
   }
 }
 
-async function buscarImagemUnsplash(produto) {
-  try {
-    const response = await axios.get(
-      "https://api.unsplash.com/search/photos",
-      {
-        params: {
-          query: produto,
-          per_page: 1,
-          orientation: "squarish"
-        },
-        headers: {
-          Authorization: `Client-ID ${process.env.UNSPLASH_ACCESS_KEY}`
-        },
-        timeout: 10000
-      }
-    );
-
-    return response.data.results?.[0]?.urls?.small || null;
-  } catch (err) {
-    console.warn("⚠️ Unsplash falhou:", err.message);
-    return null;
-  }
-}
-
 app.get("/entregas", async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page) || 1, 1);
