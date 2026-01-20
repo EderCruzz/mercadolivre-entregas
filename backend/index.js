@@ -22,7 +22,7 @@ const Entrega = require("./src/models/Entrega");
 const getToken = require("./src/utils/getToken");
 
 
-const CACHE_TTL = 1000 * 60 * 1440; // 1 dia
+// const CACHE_TTL = 1000 * 60 * 1440; // 1 dia
 
 async function getAccessTokenFromDB() {
   const token = await Token.findOne().sort({ createdAt: -1 });
@@ -208,6 +208,11 @@ app.get("/entregas", async (req, res) => {
 
     const centroCustoFiltro = req.query.centro_custo;
     const recebidoFiltro = req.query.recebido;
+
+    /* =======================
+       1️⃣ CACHE (somente leitura, sem TTL)
+    ======================= */
+    const cache = await Entrega.find().sort({ data_compra: -1 });
 
     /* =======================
        1️⃣ CACHE
