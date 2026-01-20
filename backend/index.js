@@ -191,8 +191,8 @@ async function buscarImagemGoogle(produto) {
     );
   } catch (err) {
     if (err.response?.status === 429) {
-      console.warn("⚠️ SerpAPI: limite atingido (429)");
-      return "__RATE_LIMIT__";
+      console.warn("⚠️ SerpAPI: limite atingido");
+      return null;
     }
 
     console.error("Erro Google Images:", err.message);
@@ -316,14 +316,7 @@ app.get("/entregas", async (req, res) => {
 
       // 🔒 Busca no Google SÓ se nunca teve imagem antes
       if (!cachedEntrega?.image && !image) {
-        const googleImage = await buscarImagemGoogle(produto);
-
-        if (googleImage === "__RATE_LIMIT__" || !googleImage) {
-          // 🔁 fallback Unsplash
-          image = await buscarImagemUnsplash(produto);
-        } else {
-          image = googleImage;
-        }
+        image = await buscarImagemGoogle(produto);
       }
 
       entregasMap.set(order.id, {
