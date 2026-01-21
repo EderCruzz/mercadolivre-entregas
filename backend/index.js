@@ -213,7 +213,12 @@ async function buscarPrevisaoEntrega(shippingId, accessToken) {
       }
     );
 
-    return response.data?.estimated_delivery_time?.date || null;
+    return (
+      response.data?.promised_delivery_time?.date ||
+      response.data?.estimated_delivery_time?.date ||
+      response.data?.estimated_delivery_time?.to ||
+      null
+    );
 
   } catch (err) {
     console.warn("⚠️ Erro ao buscar previsão de entrega:", shippingId);
