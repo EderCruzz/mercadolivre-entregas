@@ -2,34 +2,50 @@ import { useEffect, useState } from "react";
 import api from "../services/api";
 import noImage from "../assets/no-image.jpg";
 import "./CompraCard.css";
+import ImageModal from "./ImageModal";
 
 export default function CompraCard({ compra, view, onAtualizar }) {
   const [centro, setCentro] = useState("");
   const [conferente, setConferente] = useState("");
   const [imagemAberta, setImagemAberta] = useState(false);
 
-  const temImagemValida =
-    compra.image && compra.image !== noImage;
+  // 📦 previsão de entrega (date)
+  const [previsaoEntrega, setPrevisaoEntrega] = useState(
+    compra.previsao_entrega
+      ? compra.previsao_entrega.split("T")[0]
+      : ""
+  );
 
-  // 🔒 trava o scroll do body quando modal estiver aberto
+  const temImagemValida = compra.image && compra.image !== noImage;
+
+  // 🔒 trava scroll quando modal aberto
   useEffect(() => {
-    if (imagemAberta) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-
+    document.body.style.overflow = imagemAberta ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
   }, [imagemAberta]);
 
-  async function salvarCentroCusto() {
-    if (!centro.trim()) return;
-    await api.put(`/entregas/${compra.pedido_id}/centro-custo`, {
-      centro_custo: centro
-    });
-    onAtualizar();
+  async function salvarTriagem() {
+    try {
+      // salva centro de custo (se existir)
+      if (centro.trim()) {
+        await api.put(`/entregas/${compra.pedido_id}/centro-custo`, {
+          centro_custo: centro
+        });
+      }
+
+      // salva previsão de entrega (se existir)
+      if (previsaoEntrega) {
+        await api.put(`/entregas/${compra.pedido_id}/previsao-entrega`, {
+          previsao_entrega: previsaoEntrega
+        });
+      }
+
+      onAtualizar();
+    } catch (err) {
+      console.error("Erro ao salvar triagem:", err);
+    }
   }
 
   async function confirmarRecebimento() {
@@ -53,9 +69,7 @@ export default function CompraCard({ compra, view, onAtualizar }) {
         {/* IMAGEM */}
         <div
           className={`compra-card-image ${temImagemValida ? "clickable" : ""}`}
-          onClick={() => {
-            if (temImagemValida) setImagemAberta(true);
-          }}
+          onClick={() => temImagemValida && setImagemAberta(true)}
         >
           <img
             src={temImagemValida ? compra.image : noImage}
@@ -63,7 +77,7 @@ export default function CompraCard({ compra, view, onAtualizar }) {
           />
         </div>
 
-        {/* INFORMAÇÕES */}
+        {/* INFO */}
         <div className="compra-card-info">
           <h3 className="produto">{compra.produto}</h3>
 
@@ -74,6 +88,7 @@ export default function CompraCard({ compra, view, onAtualizar }) {
             </strong>
           </p>
 
+          {/* 📦 PREVISÃO FIXA */}
           {previsaoEntregaFormatada && view !== "entregues" && (
             <p className="meta">
               Chega em <strong>{previsaoEntregaFormatada}</strong>
@@ -84,17 +99,26 @@ export default function CompraCard({ compra, view, onAtualizar }) {
             Quantidade: <strong>{compra.quantidade}</strong>
           </p>
 
+          {/* 🧾 TRIAGEM */}
           {view === "triagem" && (
-            <div className="form-row">
+            <div className="form-row vertical">
+              <input
+                type="date"
+                value={previsaoEntrega}
+                onChange={e => setPrevisaoEntrega(e.target.value)}
+              />
+
               <input
                 placeholder="Centro de custo"
                 value={centro}
                 onChange={e => setCentro(e.target.value)}
               />
-              <button onClick={salvarCentroCusto}>Salvar</button>
+
+              <button onClick={salvarTriagem}>Salvar</button>
             </div>
           )}
 
+          {/* 📦 CLASSIFICADOS */}
           {view === "classificados" && (
             <>
               <p className="meta">
@@ -114,6 +138,7 @@ export default function CompraCard({ compra, view, onAtualizar }) {
             </>
           )}
 
+          {/* ✅ ENTREGUES */}
           {view === "entregues" && (
             <>
               <p className="meta">
@@ -136,28 +161,11 @@ export default function CompraCard({ compra, view, onAtualizar }) {
         <div className="compra-card-seller">{compra.vendedor}</div>
       </div>
 
-      {/* 🔍 MODAL DE IMAGEM — SOMENTE SE EXISTIR IMAGEM */}
-      {imagemAberta && temImagemValida && (
-        <div className="image-modal">
-          {/* FUNDO ESCURO — CLIQUE FECHA */}
-          <div
-            className="image-modal-backdrop"
-            onClick={() => setImagemAberta(false)}
-          />
-
-          {/* IMAGEM */}
-          <div className="image-modal-content">
-            <button
-              className="image-modal-close"
-              onClick={() => setImagemAberta(false)}
-            >
-              ✕
-            </button>
-
-            <img src={compra.image} alt={compra.produto} />
-          </div>
-        </div>
-      )}
+      {/* MODAL GLOBAL */}
+      <ImageModal
+        image={imagemAberta && temImagemValida ? compra.image : null}
+        onClose={() => setImagemAberta(false)}
+      />
     </>
   );
 }

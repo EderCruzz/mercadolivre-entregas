@@ -50,7 +50,7 @@ function App() {
       <Header />
 
       <div className="container">
-        <h1 className="page-title">Minhas Compras</h1>
+        <h1 className="page-title">COMPRAS E-COMMERCE</h1>
 
         {/* 🔀 ABAS */}
         <div className="tabs">
