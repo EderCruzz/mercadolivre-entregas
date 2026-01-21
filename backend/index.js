@@ -366,6 +366,7 @@ app.get("/entregas", async (req, res) => {
         previsao_entrega =
           detalhePedido?.shipping?.promised_delivery_time?.date ||
           detalhePedido?.shipping?.estimated_delivery_time?.date ||
+          detalhePedido?.fulfillments?.[0]?.estimated_delivery_time?.date ||
           null;
       }
 
