@@ -357,7 +357,7 @@ app.get("/entregas", async (req, res) => {
       }
 
       /* 📦 PREVISÃO DE ENTREGA */
-      let previsao_entrega = cachedEntrega?.previsao_entrega ?? null;
+      let previsao_entrega = cachedEntrega?.previsao_entrega || null;
 
       // 🔑 BUSCA DETALHE DO PEDIDO (igual app)
       if (!previsao_entrega) {
@@ -432,7 +432,6 @@ app.get("/entregas", async (req, res) => {
           data_recebimento: e.data_recebimento,
           status_pedido: e.status_pedido,
           data_compra: e.data_compra,
-          previsao_entrega: e.previsao_entrega // 👈 AQUI
         };
 
         // ✅ SÓ atualiza imagem se NÃO for null
@@ -443,6 +442,11 @@ app.get("/entregas", async (req, res) => {
         // ✅ SÓ atualiza vendedor se NÃO for null
         if (e.vendedor) {
           update.vendedor = e.vendedor;
+        }
+
+        // ✅ SÓ atualiza previsão se existir
+        if (e.previsao_entrega) {
+          update.previsao_entrega = e.previsao_entrega;
         }
 
         return {

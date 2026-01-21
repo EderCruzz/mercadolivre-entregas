@@ -11,6 +11,7 @@ const EntregaSchema = new mongoose.Schema(
 
     status_pedido: String,
     status_entrega: String,
+    previsao_entrega: Date,
 
     data_entrega: Date,
     data_compra: Date,

@@ -6,12 +6,26 @@ import "./CompraCard.css";
 export default function CompraCard({ compra, view, onAtualizar }) {
   const [centro, setCentro] = useState("");
   const [conferente, setConferente] = useState("");
+  const [previsaoManual, setPrevisaoManual] = useState("");
 
-  async function salvarCentroCusto() {
-    if (!centro.trim()) return;
-    await api.put(`/entregas/${compra.pedido_id}/centro-custo`, {
-      centro_custo: centro
-    });
+  async function salvarTriagem() {
+    // salva previsão de entrega (se existir)
+    if (!compra.previsao_entrega && previsaoManual) {
+      await api.put(
+        `/entregas/${compra.pedido_id}/previsao-entrega`,
+        { previsao_entrega: previsaoManual }
+      );
+    }
+
+    // salva centro de custo (se existir)
+    if (centro.trim()) {
+      await api.put(`/entregas/${compra.pedido_id}/centro-custo`, {
+        centro_custo: centro
+      });
+    }
+
+    setPrevisaoManual("");
+    setCentro("");
     onAtualizar();
   }
 
@@ -26,18 +40,6 @@ export default function CompraCard({ compra, view, onAtualizar }) {
     onAtualizar();
   }
 
-  const statusMap = {
-    delivered: { label: "Entregue", className: "status-entregue" },
-    shipped: { label: "Enviado", className: "status-enviado" },
-    ready_to_ship: { label: "Preparando envio", className: "status-enviado" }
-  };
-
-  const status =
-    statusMap[compra.status_entrega] ||
-    (view === "entregues"
-      ? { label: "Entregue", className: "status-entregue" }
-      : null);
-
   const previsaoEntregaFormatada =
     compra.previsao_entrega &&
     new Date(compra.previsao_entrega).toLocaleDateString("pt-BR");
@@ -51,12 +53,6 @@ export default function CompraCard({ compra, view, onAtualizar }) {
 
       {/* INFORMAÇÕES */}
       <div className="compra-card-info">
-        {status && (
-          <span className={`status-badge ${status.className}`}>
-            {status.label}
-          </span>
-        )}
-
         <h3 className="produto">{compra.produto}</h3>
 
         <p className="meta">
@@ -66,8 +62,8 @@ export default function CompraCard({ compra, view, onAtualizar }) {
           </strong>
         </p>
 
-        {/* 📦 PREVISÃO DE ENTREGA */}
-        {previsaoEntregaFormatada && view !== "entregues" && (
+        {/* PREVISÃO EXISTENTE */}
+        {previsaoEntregaFormatada && (
           <p className="meta">
             Chega em <strong>{previsaoEntregaFormatada}</strong>
           </p>
@@ -78,13 +74,27 @@ export default function CompraCard({ compra, view, onAtualizar }) {
         </p>
 
         {view === "triagem" && (
-          <div className="form-row">
+          <div className="form-column">
+            {/* PREVISÃO MANUAL */}
+            {!compra.previsao_entrega && (
+              <input
+                type="date"
+                value={previsaoManual}
+                onChange={e => setPrevisaoManual(e.target.value)}
+              />
+            )}
+
+            {/* CENTRO DE CUSTO */}
             <input
               placeholder="Centro de custo"
               value={centro}
               onChange={e => setCentro(e.target.value)}
             />
-            <button onClick={salvarCentroCusto}>Salvar</button>
+
+            {/* BOTÃO ÚNICO */}
+            <button onClick={salvarTriagem}>
+              Salvar
+            </button>
           </div>
         )}
 
@@ -104,25 +114,6 @@ export default function CompraCard({ compra, view, onAtualizar }) {
                 Confirmar recebimento
               </button>
             </div>
-          </>
-        )}
-
-        {view === "entregues" && (
-          <>
-            <p className="meta">
-              Centro de custo: <strong>{compra.centro_custo}</strong>
-            </p>
-            <p className="meta">
-              Conferente: <strong>{compra.conferente}</strong>
-            </p>
-            <p className="meta">
-              Recebido em{" "}
-              <strong>
-                {new Date(compra.data_recebimento).toLocaleDateString("pt-BR")}{" "}
-                às{" "}
-                {new Date(compra.data_recebimento).toLocaleTimeString("pt-BR")}
-              </strong>
-            </p>
           </>
         )}
       </div>
