@@ -226,6 +226,24 @@ async function buscarPrevisaoEntrega(shippingId, accessToken) {
   }
 }
 
+async function buscarDetalhePedido(orderId, accessToken) {
+  try {
+    const response = await axios.get(
+      `https://api.mercadolibre.com/orders/${orderId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    return response.data;
+  } catch (err) {
+    console.warn("⚠️ Erro ao buscar detalhe do pedido:", orderId);
+    return null;
+  }
+}
+
 app.get("/entregas", async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page) || 1, 1);
@@ -341,11 +359,13 @@ app.get("/entregas", async (req, res) => {
       /* 📦 PREVISÃO DE ENTREGA */
       let previsao_entrega = cachedEntrega?.previsao_entrega ?? null;
 
-      // 1️⃣ PRIORIDADE: previsão direto do pedido (igual app do ML)
+      // 🔑 BUSCA DETALHE DO PEDIDO (igual app)
       if (!previsao_entrega) {
+        const detalhePedido = await buscarDetalhePedido(order.id, accessToken);
+
         previsao_entrega =
-          order.shipping?.promised_delivery_time?.date ||
-          order.shipping?.estimated_delivery_time?.date ||
+          detalhePedido?.shipping?.promised_delivery_time?.date ||
+          detalhePedido?.shipping?.estimated_delivery_time?.date ||
           null;
       }
 
