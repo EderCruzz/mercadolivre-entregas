@@ -22,7 +22,7 @@ export default function CompraCard({ compra, view, onAtualizar }) {
       conferente
     });
 
-    setConferente("");
+    setConferente(""); // opcional, UX melhor
     onAtualizar();
   }
 
@@ -37,10 +37,6 @@ export default function CompraCard({ compra, view, onAtualizar }) {
     (view === "entregues"
       ? { label: "Entregue", className: "status-entregue" }
       : null);
-
-  const previsaoEntregaFormatada =
-    compra.previsao_entrega &&
-    new Date(compra.previsao_entrega).toLocaleDateString("pt-BR");
 
   return (
     <div className={`compra-card ${view}`}>
@@ -65,13 +61,6 @@ export default function CompraCard({ compra, view, onAtualizar }) {
             {new Date(compra.data_compra).toLocaleDateString("pt-BR")}
           </strong>
         </p>
-
-        {/* 📦 PREVISÃO DE ENTREGA */}
-        {previsaoEntregaFormatada && view !== "entregues" && (
-          <p className="meta">
-            Chega em <strong>{previsaoEntregaFormatada}</strong>
-          </p>
-        )}
 
         <p className="meta">
           Quantidade: <strong>{compra.quantidade}</strong>
