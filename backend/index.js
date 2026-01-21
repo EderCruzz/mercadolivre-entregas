@@ -201,8 +201,10 @@ async function buscarImagemGoogle(produto) {
 }
 
 async function buscarPrevisaoEntrega(shippingId, accessToken) {
+  if (!shippingId) return null;
+
   try {
-    const res = await axios.get(
+    const response = await axios.get(
       `https://api.mercadolibre.com/shipments/${shippingId}`,
       {
         headers: {
@@ -211,13 +213,10 @@ async function buscarPrevisaoEntrega(shippingId, accessToken) {
       }
     );
 
-    return (
-      res.data.promised_delivery_date ||
-      res.data.estimated_delivery_date?.date ||
-      null
-    );
+    return response.data?.estimated_delivery_time?.date || null;
+
   } catch (err) {
-    console.warn("⚠️ Erro ao buscar previsão de entrega:", err.message);
+    console.warn("⚠️ Erro ao buscar previsão de entrega:", shippingId);
     return null;
   }
 }
