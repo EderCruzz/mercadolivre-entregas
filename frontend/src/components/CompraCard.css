@@ -92,6 +92,66 @@
 }
 
 /* ===============================
+   🔍 MODAL DE IMAGEM - FULL BODY
+================================ */
+
+.image-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+}
+
+.image-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 1;
+}
+
+.image-modal-content {
+  position: fixed;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  z-index: 2;
+}
+
+.image-modal-content img {
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 12px;
+  background: #fff;
+  padding: 12px;
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
+}
+
+.image-modal-close {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+
+  width: 42px;
+  height: 42px;
+
+  border-radius: 50%;
+  border: none;
+
+  background: #000;
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+
+  z-index: 3;
+}
+
+.compra-card-image.clickable {
+  cursor: zoom-in;
+}
+
+/* ===============================
    📱 MOBILE
 ================================ */
 @media (max-width: 768px) {

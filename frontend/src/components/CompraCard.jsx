@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import api from "../services/api";
 import noImage from "../assets/no-image.jpg";
 import "./CompraCard.css";
@@ -6,26 +6,29 @@ import "./CompraCard.css";
 export default function CompraCard({ compra, view, onAtualizar }) {
   const [centro, setCentro] = useState("");
   const [conferente, setConferente] = useState("");
-  const [previsaoManual, setPrevisaoManual] = useState("");
+  const [imagemAberta, setImagemAberta] = useState(false);
 
-  async function salvarTriagem() {
-    // salva previsão de entrega (se existir)
-    if (!compra.previsao_entrega && previsaoManual) {
-      await api.put(
-        `/entregas/${compra.pedido_id}/previsao-entrega`,
-        { previsao_entrega: previsaoManual }
-      );
+  const temImagemValida =
+    compra.image && compra.image !== noImage;
+
+  // 🔒 trava o scroll do body quando modal estiver aberto
+  useEffect(() => {
+    if (imagemAberta) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
     }
 
-    // salva centro de custo (se existir)
-    if (centro.trim()) {
-      await api.put(`/entregas/${compra.pedido_id}/centro-custo`, {
-        centro_custo: centro
-      });
-    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [imagemAberta]);
 
-    setPrevisaoManual("");
-    setCentro("");
+  async function salvarCentroCusto() {
+    if (!centro.trim()) return;
+    await api.put(`/entregas/${compra.pedido_id}/centro-custo`, {
+      centro_custo: centro
+    });
     onAtualizar();
   }
 
@@ -45,83 +48,116 @@ export default function CompraCard({ compra, view, onAtualizar }) {
     new Date(compra.previsao_entrega).toLocaleDateString("pt-BR");
 
   return (
-    <div className={`compra-card ${view}`}>
-      {/* IMAGEM */}
-      <div className="compra-card-image">
-        <img src={compra.image || noImage} alt={compra.produto} />
-      </div>
+    <>
+      <div className={`compra-card ${view}`}>
+        {/* IMAGEM */}
+        <div
+          className={`compra-card-image ${temImagemValida ? "clickable" : ""}`}
+          onClick={() => {
+            if (temImagemValida) setImagemAberta(true);
+          }}
+        >
+          <img
+            src={temImagemValida ? compra.image : noImage}
+            alt={compra.produto}
+          />
+        </div>
 
-      {/* INFORMAÇÕES */}
-      <div className="compra-card-info">
-        <h3 className="produto">{compra.produto}</h3>
+        {/* INFORMAÇÕES */}
+        <div className="compra-card-info">
+          <h3 className="produto">{compra.produto}</h3>
 
-        <p className="meta">
-          Compra em{" "}
-          <strong>
-            {new Date(compra.data_compra).toLocaleDateString("pt-BR")}
-          </strong>
-        </p>
-
-        {/* PREVISÃO EXISTENTE */}
-        {previsaoEntregaFormatada && (
           <p className="meta">
-            Chega em <strong>{previsaoEntregaFormatada}</strong>
+            Compra em{" "}
+            <strong>
+              {new Date(compra.data_compra).toLocaleDateString("pt-BR")}
+            </strong>
           </p>
-        )}
 
-        <p className="meta">
-          Quantidade: <strong>{compra.quantidade}</strong>
-        </p>
-
-        {view === "triagem" && (
-          <div className="form-column">
-            {/* PREVISÃO MANUAL */}
-            {!compra.previsao_entrega && (
-              <input
-                type="date"
-                value={previsaoManual}
-                onChange={e => setPrevisaoManual(e.target.value)}
-              />
-            )}
-
-            {/* CENTRO DE CUSTO */}
-            <input
-              placeholder="Centro de custo"
-              value={centro}
-              onChange={e => setCentro(e.target.value)}
-            />
-
-            {/* BOTÃO ÚNICO */}
-            <button onClick={salvarTriagem}>
-              Salvar
-            </button>
-          </div>
-        )}
-
-        {view === "classificados" && (
-          <>
+          {previsaoEntregaFormatada && view !== "entregues" && (
             <p className="meta">
-              Centro de custo: <strong>{compra.centro_custo}</strong>
+              Chega em <strong>{previsaoEntregaFormatada}</strong>
             </p>
+          )}
 
+          <p className="meta">
+            Quantidade: <strong>{compra.quantidade}</strong>
+          </p>
+
+          {view === "triagem" && (
             <div className="form-row">
               <input
-                placeholder="Conferente"
-                value={conferente}
-                onChange={e => setConferente(e.target.value)}
+                placeholder="Centro de custo"
+                value={centro}
+                onChange={e => setCentro(e.target.value)}
               />
-              <button onClick={confirmarRecebimento}>
-                Confirmar recebimento
-              </button>
+              <button onClick={salvarCentroCusto}>Salvar</button>
             </div>
-          </>
-        )}
+          )}
+
+          {view === "classificados" && (
+            <>
+              <p className="meta">
+                Centro de custo: <strong>{compra.centro_custo}</strong>
+              </p>
+
+              <div className="form-row">
+                <input
+                  placeholder="Conferente"
+                  value={conferente}
+                  onChange={e => setConferente(e.target.value)}
+                />
+                <button onClick={confirmarRecebimento}>
+                  Confirmar recebimento
+                </button>
+              </div>
+            </>
+          )}
+
+          {view === "entregues" && (
+            <>
+              <p className="meta">
+                Centro de custo: <strong>{compra.centro_custo}</strong>
+              </p>
+              <p className="meta">
+                Conferente: <strong>{compra.conferente}</strong>
+              </p>
+              <p className="meta">
+                Recebido em{" "}
+                <strong>
+                  {new Date(compra.data_recebimento).toLocaleDateString("pt-BR")}
+                </strong>
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* VENDEDOR */}
+        <div className="compra-card-seller">{compra.vendedor}</div>
       </div>
 
-      {/* VENDEDOR */}
-      <div className="compra-card-seller">
-        {compra.vendedor}
-      </div>
-    </div>
+      {/* 🔍 MODAL DE IMAGEM — SOMENTE SE EXISTIR IMAGEM */}
+      {imagemAberta && temImagemValida && (
+        <div className="image-modal">
+          {/* FUNDO ESCURO — CLIQUE FECHA */}
+          <div
+            className="image-modal-backdrop"
+            onClick={() => setImagemAberta(false)}
+          />
+
+          {/* IMAGEM */}
+          <div className="image-modal-content">
+            <button
+              className="image-modal-close"
+              onClick={() => setImagemAberta(false)}
+            >
+              ✕
+            </button>
+
+            <img src={compra.image} alt={compra.produto} />
+          </div>
+        </div>
+      )}
+    </>
   );
 }
