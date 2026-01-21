@@ -583,6 +583,39 @@ app.put("/entregas/:pedido_id/recebimento", async (req, res) => {
   }
 });
 
+app.put("/entregas/:pedido_id/previsao-entrega", async (req, res) => {
+  try {
+    const { pedido_id } = req.params;
+    const { previsao_entrega } = req.body;
+
+    if (!previsao_entrega) {
+      return res.status(400).json({
+        error: "Previsão de entrega é obrigatória"
+      });
+    }
+
+    const entrega = await Entrega.findOneAndUpdate(
+      { pedido_id: Number(pedido_id) },
+      { previsao_entrega: new Date(previsao_entrega) },
+      { new: true }
+    );
+
+    if (!entrega) {
+      return res.status(404).json({
+        error: "Entrega não encontrada"
+      });
+    }
+
+    res.json(entrega);
+
+  } catch (err) {
+    console.error("Erro ao salvar previsão de entrega:", err);
+    res.status(500).json({
+      error: "Erro ao salvar previsão de entrega"
+    });
+  }
+});
+
 // const startCron = require("./src/cron/updateEntregas");
 // startCron();
 
