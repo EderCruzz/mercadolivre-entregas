@@ -339,10 +339,19 @@ app.get("/entregas", async (req, res) => {
       }
 
       /* 📦 PREVISÃO DE ENTREGA */
-      const shippingId = order.shipping?.id;
       let previsao_entrega = cachedEntrega?.previsao_entrega ?? null;
 
-      // busca só se ainda não existir no cache
+      // 1️⃣ PRIORIDADE: previsão direto do pedido (igual app do ML)
+      if (!previsao_entrega) {
+        previsao_entrega =
+          order.shipping?.promised_delivery_time?.date ||
+          order.shipping?.estimated_delivery_time?.date ||
+          null;
+      }
+
+      // 2️⃣ FALLBACK: buscar no shipment (quando existir)
+      const shippingId = order.shipping?.id;
+
       if (!previsao_entrega && shippingId) {
         previsao_entrega = await buscarPrevisaoEntrega(
           shippingId,
