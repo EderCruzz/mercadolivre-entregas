@@ -95,7 +95,7 @@ function App() {
               onClick={() => setPage(p => Math.max(p - 1, 1))}
               disabled={page === 1}
             >
-              ⬅ Anterior
+              Anterior
             </button>
 
             <span>
@@ -106,7 +106,7 @@ function App() {
               onClick={() => setPage(p => Math.min(p + 1, totalPages))}
               disabled={page === totalPages}
             >
-              Próxima ➡
+              Próxima
             </button>
           </div>
         )}

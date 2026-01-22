@@ -63,6 +63,11 @@ export default function CompraCard({ compra, view, onAtualizar }) {
     compra.previsao_entrega &&
     new Date(compra.previsao_entrega).toLocaleDateString("pt-BR");
 
+  // ✅ validações
+  const podeSalvarTriagem = (centro && centro.trim()) && previsaoEntrega;
+
+  const podeConfirmarRecebimento = conferente && conferente.trim();
+
   return (
     <>
       <div className={`compra-card ${view}`}>
@@ -120,7 +125,12 @@ export default function CompraCard({ compra, view, onAtualizar }) {
                 onChange={e => setCentro(e.target.value)}
               />
 
-              <button onClick={salvarTriagem}>Salvar</button>
+              <button
+                onClick={salvarTriagem}
+                disabled={!podeSalvarTriagem}
+              >
+                Salvar
+              </button>
             </div>
           )}
 
@@ -137,7 +147,10 @@ export default function CompraCard({ compra, view, onAtualizar }) {
                   value={conferente}
                   onChange={e => setConferente(e.target.value)}
                 />
-                <button onClick={confirmarRecebimento}>
+                <button
+                  onClick={confirmarRecebimento}
+                  disabled={!podeConfirmarRecebimento}
+                >
                   Confirmar recebimento
                 </button>
               </div>
