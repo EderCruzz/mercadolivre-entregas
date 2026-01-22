@@ -363,6 +363,16 @@ button:disabled {
     display: flex;
     align-items: center;
   }
+
+  .form-row button {
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: none;
+    background: #7CB518;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+  }
 }
 
 /* ===============================
