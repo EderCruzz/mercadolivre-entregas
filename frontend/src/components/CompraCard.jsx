@@ -101,15 +101,21 @@ export default function CompraCard({ compra, view, onAtualizar }) {
 
           {/* 🧾 TRIAGEM */}
           {view === "triagem" && (
-            <div className="form-row vertical">
-              <input
-                type="date"
-                value={previsaoEntrega}
-                onChange={e => setPrevisaoEntrega(e.target.value)}
-              />
+            <div className="form-row vertical triagem-row">
+              <div className="date-wrapper">
+                {!previsaoEntrega && <span className="date-placeholder">Data</span>}
+
+                <input
+                  type="date"
+                  className="input-data"
+                  value={previsaoEntrega}
+                  onChange={e => setPrevisaoEntrega(e.target.value)}
+                />
+              </div>
 
               <input
                 placeholder="Centro de custo"
+                className="input-centro"
                 value={centro}
                 onChange={e => setCentro(e.target.value)}
               />
@@ -150,8 +156,15 @@ export default function CompraCard({ compra, view, onAtualizar }) {
               <p className="meta">
                 Recebido em{" "}
                 <strong>
-                  {new Date(compra.data_recebimento).toLocaleDateString("pt-BR")}
+                  {new Date(compra.data_recebimento).toLocaleDateString("pt-BR")}{" "}
+                  às{" "}
+                  {new Date(compra.data_recebimento).toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit"
+                  })}
                 </strong>
+                .
               </p>
             </>
           )}

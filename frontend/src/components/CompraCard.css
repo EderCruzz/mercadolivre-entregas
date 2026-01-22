@@ -158,6 +158,24 @@
   box-shadow: 0 0 0 2px rgba(124, 181, 24, 0.25);
 }
 
+.triagem-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.input-data {
+  width: 160px;
+}
+
+.input-centro {
+  flex: 1;
+}
+
+.date-placeholder {
+  color: #555
+}
+
 /* ===============================
    📱 MOBILE
 ================================ */
@@ -259,6 +277,81 @@
 
   .compra-card input::placeholder {
     font-size: 14px;
+  }
+
+  /* 🔧 NORMALIZA TODOS OS INPUTS DA TRIAGEM */
+  .triagem-row input {
+    height: 40px;
+    box-sizing: border-box;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+
+  /* 📅 INPUT DATA */
+  .input-data {
+    width: 100%;
+    height: 44px;
+    padding: 0;              /* 🔑 remove variação */
+    margin: 0;
+    line-height: 44px;       /* 🔑 fixa altura interna */
+    text-align: center;
+
+    background-color: #f1f1f1;
+    border-radius: 8px;
+    font-size: 14px;
+
+    appearance: none;
+    -webkit-appearance: none; /* 🔑 MUITO IMPORTANTE */
+  }
+
+  /* remove variação de altura interna do iOS */
+  .input-data::-webkit-datetime-edit {
+    display: none;
+  }
+
+  .input-data::-webkit-calendar-picker-indicator {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+
+  /* 📝 INPUT CENTRO DE CUSTO */
+  .input-centro {
+    flex: 1;
+    min-width: 0;
+    height: 44px;
+  }
+
+  /* 🎯 FOCO (igual você pediu antes) */
+  .triagem-row input:focus {
+    outline: none;
+    border-color: #7CB518;
+  }
+
+  /* 💾 BOTÃO */
+  .triagem-row button {
+    height: 44px;
+    flex-shrink: 0;
+  }
+
+  .date-placeholder{
+    overflow: visible;
+    font-size: 12px;
+  }
+
+  .triagem-row {
+    display: flex;
+    align-items: center; /* 🔑 força alinhamento */
+    gap: 8px;
+  }  
+
+  .date-wrapper {
+    width: 70px;
+    height: 44px;
+    flex-shrink: 0;
+    position: relative;
+    display: flex;
+    align-items: center;
   }
 }
 
