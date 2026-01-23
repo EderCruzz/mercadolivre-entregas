@@ -1,26 +1,27 @@
 .app-header {
-  background: #ffffff;
-  border-bottom: 4px solid #7CB518; /* verde CEPE */
-  padding: 16px 32px;
-}
-
-.header-content {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.header-left {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #e5e5e5;
+  background: #fff;
 }
 
-.logo {
+.header-left .logo {
   height: 36px;
 }
 
-.system-title {
-  font-size: 20px;
+.sync-button {
+  background-color: #fff;
+  color: #7CB518;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
   font-weight: 600;
-  color: #1f3d3d;
+  cursor: pointer;
+}
+
+.sync-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

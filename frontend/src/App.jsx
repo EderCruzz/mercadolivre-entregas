@@ -10,6 +10,7 @@ function App() {
   const [totalPages, setTotalPages] = useState(1);
   const [view, setView] = useState("triagem");
   const [animating, setAnimating] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     setPage(1);
@@ -20,34 +21,53 @@ function App() {
     carregarCompras(page);
   }, [page]);
 
- async function carregarCompras(pagina) {
-  const url = `/entregas?page=${pagina}&view=${view}`;
+  async function carregarCompras(pagina) {
+    const url = `/entregas?page=${pagina}&view=${view}`;
 
-  try {
-    setAnimating(true);
+    try {
+      setAnimating(true);
 
-    // ⏳ deixa o fade-out acontecer
-    setTimeout(async () => {
-      const res = await api.get(url);
+      // ⏳ deixa o fade-out acontecer
+      setTimeout(async () => {
+        const res = await api.get(url);
 
-      setCompras(res.data.data);
-      setTotalPages(res.data.totalPages);
+        setCompras(res.data.data);
+        setTotalPages(res.data.totalPages);
 
-      // ⏳ pequena pausa pra entrada suave
-      setTimeout(() => {
-        setAnimating(false);
-      }, 50);
-
-    }, 200);
-  } catch (err) {
-    console.error("Erro ao carregar compras:", err);
-    setAnimating(false);
+        // ⏳ pequena pausa pra entrada suave
+        setTimeout(() => {
+          setAnimating(false);
+        }, 50);
+      }, 200);
+    } catch (err) {
+      console.error("Erro ao carregar compras:", err);
+      setAnimating(false);
+    }
   }
-}
+
+  // 🔄 SINCRONIZAÇÃO MANUAL
+  async function sincronizarEntregas() {
+    try {
+      setSyncing(true);
+
+      await api.get("/entregas/sync");
+
+      // após sincronizar, recarrega a aba atual
+      await carregarCompras(1);
+      setPage(1);
+    } catch (err) {
+      console.error("Erro ao sincronizar entregas:", err);
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   return (
     <>
-      <Header />
+      <Header
+        onSync={sincronizarEntregas}
+        syncing={syncing}
+      />
 
       <div className="container">
         <h1 className="page-title">COMPRAS E-COMMERCE</h1>
@@ -111,7 +131,6 @@ function App() {
           </div>
         )}
       </div>
-
     </>
   );
 }
