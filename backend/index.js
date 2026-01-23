@@ -244,63 +244,12 @@ async function buscarDetalhePedido(orderId, accessToken) {
   }
 }
 
-app.get("/entregas", async (req, res) => {
+app.post("/entregas/sync", async (req, res) => {
   try {
-    const page = Math.max(parseInt(req.query.page) || 1, 1);
-    const PER_PAGE = 20;
-    const skip = (page - 1) * PER_PAGE;
-
-    const centroCustoFiltro = req.query.centro_custo;
-    const recebidoFiltro = req.query.recebido;
-
     /* =======================
-       1️⃣ CACHE (somente leitura, sem TTL)
+       1️⃣ CACHE ATUAL
     ======================= */
     const cache = await Entrega.find().sort({ data_compra: -1 });
-
-    /* =======================
-       1️⃣ CACHE
-    ======================= */
-
-    /*
-    const cache = await Entrega.find().sort({ data_compra: -1 });
-
-    if (cache.length > 0) {
-      const cacheAge = Date.now() - new Date(cache[0].updatedAt).getTime();
-
-      if (cacheAge < CACHE_TTL) {
-        let entregasCache = cache;
-
-        if (centroCustoFiltro === "pendente") {
-          entregasCache = entregasCache.filter(e => !e.centro_custo);
-        }
-
-        if (centroCustoFiltro === "definido") {
-          entregasCache = entregasCache.filter(e => e.centro_custo);
-        }
-
-        if (recebidoFiltro === "sim") {
-          entregasCache = entregasCache.filter(e => e.conferente);
-        }
-
-        if (recebidoFiltro === "nao") {
-          entregasCache = entregasCache.filter(e => !e.conferente);
-        }
-
-        const total = entregasCache.length;
-        const totalPages = Math.ceil(total / PER_PAGE);
-        const paginated = entregasCache.slice(skip, skip + PER_PAGE);
-
-        return res.json({
-          page,
-          perPage: PER_PAGE,
-          total,
-          totalPages,
-          data: paginated
-        });
-      }
-    }
-      */
 
     /* =======================
        2️⃣ API MERCADO LIVRE
@@ -331,22 +280,18 @@ app.get("/entregas", async (req, res) => {
 
       const produto = item?.item?.title || "Produto não identificado";
 
-      /* 🏪 VENDEDOR (fallback forte) */
       const vendedor =
         item?.seller?.nickname ||
         order.seller?.nickname ||
         cachedEntrega?.vendedor ||
         "Vendedor não identificado";
 
-      /* 🖼️ IMAGEM (preserva cache, mas não perde) */
       let image = cachedEntrega?.image ?? null;
 
-      // Thumbnail do Mercado Livre
       if (!image && item?.item?.thumbnail) {
         image = item.item.thumbnail;
       }
 
-      // 🔒 Busca no Google SÓ se nunca teve imagem antes
       const dataCompra = new Date(order.date_created);
 
       const podeBuscarImagem =
@@ -356,10 +301,8 @@ app.get("/entregas", async (req, res) => {
         image = await buscarImagemGoogle(produto);
       }
 
-      /* 📦 PREVISÃO DE ENTREGA */
       let previsao_entrega = cachedEntrega?.previsao_entrega || null;
 
-      // 🔑 BUSCA DETALHE DO PEDIDO (igual app)
       if (!previsao_entrega) {
         const detalhePedido = await buscarDetalhePedido(order.id, accessToken);
 
@@ -370,7 +313,6 @@ app.get("/entregas", async (req, res) => {
           null;
       }
 
-      // 2️⃣ FALLBACK: buscar no shipment (quando existir)
       const shippingId = order.shipping?.id;
 
       if (!previsao_entrega && shippingId) {
@@ -389,7 +331,7 @@ app.get("/entregas", async (req, res) => {
         centro_custo: cachedEntrega?.centro_custo ?? null,
         conferente: cachedEntrega?.conferente ?? null,
         data_recebimento: cachedEntrega?.data_recebimento ?? null,
-        previsao_entrega, // 👈 NOVO CAMPO
+        previsao_entrega,
         status_pedido: order.status,
         data_compra: order.date_created
       });
@@ -398,28 +340,7 @@ app.get("/entregas", async (req, res) => {
     const entregasUnicas = Array.from(entregasMap.values());
 
     /* =======================
-   FILTRO POR ABA (VIEW)
-    ======================= */
-    const view = req.query.view;
-
-    let entregasFiltradas = entregasUnicas;
-
-    if (view === "triagem") {
-      entregasFiltradas = entregasUnicas.filter(e => !e.centro_custo);
-    }
-
-    if (view === "classificados") {
-      entregasFiltradas = entregasUnicas.filter(
-        e => e.centro_custo && !e.conferente
-      );
-    }
-
-    if (view === "entregues") {
-      entregasFiltradas = entregasUnicas.filter(e => e.conferente);
-    }
-
-    /* =======================
-       3️⃣ ATUALIZA CACHE
+       3️⃣ ATUALIZA MONGO
     ======================= */
     await Entrega.bulkWrite(
       entregasUnicas.map(e => {
@@ -431,23 +352,12 @@ app.get("/entregas", async (req, res) => {
           conferente: e.conferente,
           data_recebimento: e.data_recebimento,
           status_pedido: e.status_pedido,
-          data_compra: e.data_compra,
+          data_compra: e.data_compra
         };
 
-        // ✅ SÓ atualiza imagem se NÃO for null
-        if (e.image) {
-          update.image = e.image;
-        }
-
-        // ✅ SÓ atualiza vendedor se NÃO for null
-        if (e.vendedor) {
-          update.vendedor = e.vendedor;
-        }
-
-        // ✅ SÓ atualiza previsão se existir
-        if (e.previsao_entrega) {
-          update.previsao_entrega = e.previsao_entrega;
-        }
+        if (e.image) update.image = e.image;
+        if (e.vendedor) update.vendedor = e.vendedor;
+        if (e.previsao_entrega) update.previsao_entrega = e.previsao_entrega;
 
         return {
           updateOne: {
@@ -459,12 +369,51 @@ app.get("/entregas", async (req, res) => {
       })
     );
 
+    res.json({ message: "Entregas sincronizadas com sucesso" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao sincronizar entregas" });
+  }
+});
+
+app.get("/entregas", async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const PER_PAGE = 20;
+    const skip = (page - 1) * PER_PAGE;
+    const view = req.query.view;
+
+    let filtro = {};
+
+    if (view === "triagem") {
+      filtro = { centro_custo: null };
+    }
+
+    if (view === "classificados") {
+      filtro = {
+        centro_custo: { $ne: null },
+        conferente: null
+      };
+    }
+
+    if (view === "entregues") {
+      filtro = { conferente: { $ne: null } };
+    }
+
+    const total = await Entrega.countDocuments(filtro);
+
+    const entregas = await Entrega.find(filtro)
+      .sort({ data_compra: -1 })
+      .skip(skip)
+      .limit(PER_PAGE);
+
     res.json({
       page,
       perPage: PER_PAGE,
-      total: entregasFiltradas.length,
-      totalPages: Math.ceil(entregasFiltradas.length / PER_PAGE),
-      data: entregasFiltradas.slice(skip, skip + PER_PAGE)
+      total,
+      totalPages: Math.ceil(total / PER_PAGE),
+      data: entregas
     });
 
   } catch (err) {
