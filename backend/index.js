@@ -244,7 +244,7 @@ async function buscarDetalhePedido(orderId, accessToken) {
   }
 }
 
-app.post("/entregas/sync", async (req, res) => {
+app.get("/entregas/sync", async (req, res) => {
   try {
     /* =======================
        1️⃣ CACHE ATUAL
