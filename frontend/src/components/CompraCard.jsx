@@ -8,6 +8,7 @@ export default function CompraCard({ compra, view, onAtualizar }) {
   const [centro, setCentro] = useState("");
   const [conferente, setConferente] = useState("");
   const [imagemAberta, setImagemAberta] = useState(false);
+  const [palavraChave, setPalavraChave] = useState(compra.palavra_chave || "");
 
   // 📦 previsão de entrega (date)
   const [previsaoEntrega, setPrevisaoEntrega] = useState(
@@ -28,17 +29,21 @@ export default function CompraCard({ compra, view, onAtualizar }) {
 
   async function salvarTriagem() {
     try {
-      // salva centro de custo (se existir)
-      if (centro.trim()) {
-        await api.put(`/entregas/${compra.pedido_id}/centro-custo`, {
-          centro_custo: centro
-        });
-      }
+      // 🔴 obrigatórios
+      if (!centro.trim() || !previsaoEntrega) return;
 
-      // salva previsão de entrega (se existir)
-      if (previsaoEntrega) {
-        await api.put(`/entregas/${compra.pedido_id}/previsao-entrega`, {
-          previsao_entrega: previsaoEntrega
+      await api.put(`/entregas/${compra.pedido_id}/centro-custo`, {
+        centro_custo: centro
+      });
+
+      await api.put(`/entregas/${compra.pedido_id}/previsao-entrega`, {
+        previsao_entrega: previsaoEntrega
+      });
+
+      // 🟡 opcional
+      if (palavraChave.trim()) {
+        await api.put(`/entregas/${compra.pedido_id}/palavra-chave`, {
+          palavra_chave: palavraChave
         });
       }
 
@@ -64,9 +69,8 @@ export default function CompraCard({ compra, view, onAtualizar }) {
     new Date(compra.previsao_entrega).toLocaleDateString("pt-BR");
 
   // ✅ validações
-  const podeSalvarTriagem = (centro && centro.trim()) && previsaoEntrega;
-
-  const podeConfirmarRecebimento = conferente && conferente.trim();
+  const podeSalvarTriagem = !!centro.trim() && !!previsaoEntrega;
+  const podeConfirmarRecebimento = !!conferente.trim();
 
   return (
     <>
@@ -108,7 +112,9 @@ export default function CompraCard({ compra, view, onAtualizar }) {
           {view === "triagem" && (
             <div className="form-row vertical triagem-row">
               <div className="date-wrapper">
-                {!previsaoEntrega && <span className="date-placeholder">Data</span>}
+                {!previsaoEntrega && (
+                  <span className="date-placeholder">Data</span>
+                )}
 
                 <input
                   type="date"
@@ -117,6 +123,13 @@ export default function CompraCard({ compra, view, onAtualizar }) {
                   onChange={e => setPrevisaoEntrega(e.target.value)}
                 />
               </div>
+
+              <input
+                placeholder="Palavra-chave (opcional)"
+                className="input-palavra"
+                value={palavraChave}
+                onChange={e => setPalavraChave(e.target.value)}
+              />
 
               <input
                 placeholder="Centro de custo"
@@ -141,6 +154,12 @@ export default function CompraCard({ compra, view, onAtualizar }) {
                 Centro de custo: <strong>{compra.centro_custo}</strong>
               </p>
 
+              {compra.palavra_chave && (
+                <p className="meta">
+                  🔑 Palavra-chave: <strong>{compra.palavra_chave}</strong>
+                </p>
+              )}
+
               <div className="form-row">
                 <input
                   placeholder="Conferente"
@@ -163,21 +182,31 @@ export default function CompraCard({ compra, view, onAtualizar }) {
               <p className="meta">
                 Centro de custo: <strong>{compra.centro_custo}</strong>
               </p>
+
+              {compra.palavra_chave && (
+                <p className="meta">
+                  🔑 Palavra-chave: <strong>{compra.palavra_chave}</strong>
+                </p>
+              )}
+
               <p className="meta">
                 Conferente: <strong>{compra.conferente}</strong>
               </p>
+
               <p className="meta">
                 Recebido em{" "}
                 <strong>
                   {new Date(compra.data_recebimento).toLocaleDateString("pt-BR")}{" "}
                   às{" "}
-                  {new Date(compra.data_recebimento).toLocaleTimeString("pt-BR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit"
-                  })}
+                  {new Date(compra.data_recebimento).toLocaleTimeString(
+                    "pt-BR",
+                    {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit"
+                    }
+                  )}
                 </strong>
-                .
               </p>
             </>
           )}
