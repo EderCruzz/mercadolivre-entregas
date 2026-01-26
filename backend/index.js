@@ -326,6 +326,7 @@ app.get("/entregas/sync", async (req, res) => {
         quantidade: item?.quantity ?? 1,
         vendedor,
         centro_custo: cachedEntrega?.centro_custo ?? null,
+        palavra_chave: cachedEntrega?.palavra_chave ?? null,
         conferente: cachedEntrega?.conferente ?? null,
         data_recebimento: cachedEntrega?.data_recebimento ?? null,
         previsao_entrega,
@@ -355,6 +356,7 @@ app.get("/entregas/sync", async (req, res) => {
         if (e.image) update.image = e.image;
         if (e.vendedor) update.vendedor = e.vendedor;
         if (e.previsao_entrega) update.previsao_entrega = e.previsao_entrega;
+        if (e.palavra_chave) update.palavra_chave = e.palavra_chave;
 
         return {
           updateOne: {
@@ -562,6 +564,42 @@ app.put("/entregas/:pedido_id/previsao-entrega", async (req, res) => {
     console.error("Erro ao salvar previsão de entrega:", err);
     res.status(500).json({
       error: "Erro ao salvar previsão de entrega"
+    });
+  }
+});
+
+app.put("/entregas/:pedido_id/palavra-chave", async (req, res) => {
+  try {
+    const { pedido_id } = req.params;
+    const { palavra_chave } = req.body;
+
+    if (!palavra_chave || !palavra_chave.trim()) {
+      return res.status(400).json({
+        error: "Palavra-chave é obrigatória"
+      });
+    }
+
+    const entrega = await Entrega.findOneAndUpdate(
+      { pedido_id: Number(pedido_id) },
+      { palavra_chave: palavra_chave.trim() },
+      { new: true }
+    );
+
+    if (!entrega) {
+      return res.status(404).json({
+        error: "Entrega não encontrada"
+      });
+    }
+
+    res.json({
+      message: "Palavra-chave salva com sucesso",
+      entrega
+    });
+
+  } catch (err) {
+    console.error("Erro ao salvar palavra-chave:", err);
+    res.status(500).json({
+      error: "Erro ao salvar palavra-chave"
     });
   }
 });

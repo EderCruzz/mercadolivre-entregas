@@ -25,6 +25,10 @@ const EntregaSchema = new mongoose.Schema(
       type: String,
       default: null
     },
+    palavra_chave: {
+      type: String,
+      default: null
+    },
     conferente: String,   // 🆕 quem recebeu
     data_recebimento: Date, // 🆕 quando recebeu
   },
