@@ -387,3 +387,20 @@ button:disabled {
     width: 90px;
   }
 }
+
+/* DESKTOP ONLY */
+@media (min-width: 1024px) {
+  .compra-card-seller {
+    max-width: 220px;          /* limita largura */
+    white-space: nowrap;       /* evita quebrar feio */
+    overflow: hidden;          /* esconde excesso */
+    text-overflow: ellipsis;   /* "..." elegante */
+    text-align: right;
+  }
+
+  .compra-card-image img {
+    max-width: 140px;
+    max-height: 140px;
+    object-fit: contain; /* não estica, não corta */
+  }
+}
