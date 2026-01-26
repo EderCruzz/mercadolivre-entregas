@@ -1,10 +1,15 @@
 .app-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   padding: 12px 20px;
   border-bottom: 4px solid #7CB518;
   background: #fff;
+}
+
+.header-content {
+  display: flex;
+  margin: auto;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1200px;
 }
 
 .header-left .logo {
