@@ -21,9 +21,6 @@ const Token = require("./src/models/Token");
 const Entrega = require("./src/models/Entrega");
 const getToken = require("./src/utils/getToken");
 
-
-// const CACHE_TTL = 1000 * 60 * 1440; // 1 dia
-
 async function getAccessTokenFromDB() {
   const token = await Token.findOne().sort({ createdAt: -1 });
 
@@ -272,7 +269,7 @@ app.get("/entregas/sync", async (req, res) => {
 
     const hoje = new Date();
     const limiteBuscaImagem = new Date();
-    limiteBuscaImagem.setDate(hoje.getDate() - 40);
+    limiteBuscaImagem.setDate(hoje.getDate() - 20);
 
     for (const order of ordersResponse.data.results) {
       const cachedEntrega = cache.find(c => c.pedido_id === order.id);
