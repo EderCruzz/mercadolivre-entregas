@@ -300,9 +300,12 @@ app.get("/entregas/sync", async (req, res) => {
 
       let previsao_entrega = cachedEntrega?.previsao_entrega || null;
 
-      if (!previsao_entrega) {
+      // 🔒 REGRA: se o usuário já definiu, NÃO sobrescreve
+      let previsao_entrega = cachedEntrega?.previsao_entrega ?? null;
+      
+      if (!cachedEntrega?.previsao_entrega) {
         const detalhePedido = await buscarDetalhePedido(order.id, accessToken);
-
+      
         previsao_entrega =
           detalhePedido?.shipping?.promised_delivery_time?.date ||
           detalhePedido?.shipping?.estimated_delivery_time?.date ||
@@ -355,7 +358,9 @@ app.get("/entregas/sync", async (req, res) => {
 
         if (e.image) update.image = e.image;
         if (e.vendedor) update.vendedor = e.vendedor;
-        if (e.previsao_entrega) update.previsao_entrega = e.previsao_entrega;
+        if (!cachedEntrega?.previsao_entrega && e.previsao_entrega) {
+           update.previsao_entrega = e.previsao_entrega;
+         }
         if (e.palavra_chave) update.palavra_chave = e.palavra_chave;
 
         return {
