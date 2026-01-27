@@ -298,8 +298,6 @@ app.get("/entregas/sync", async (req, res) => {
         image = await buscarImagemGoogle(produto);
       }
 
-      let previsao_entrega = cachedEntrega?.previsao_entrega || null;
-
       // 🔒 REGRA: se o usuário já definiu, NÃO sobrescreve
       let previsao_entrega = cachedEntrega?.previsao_entrega ?? null;
       
