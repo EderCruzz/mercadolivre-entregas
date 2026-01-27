@@ -9,6 +9,11 @@ export default function CompraCard({ compra, view, onAtualizar }) {
   const [conferente, setConferente] = useState("");
   const [imagemAberta, setImagemAberta] = useState(false);
   const [palavraChave, setPalavraChave] = useState(compra.palavra_chave || "");
+  const [previsaoEntrega, setPrevisaoEntrega] = useState(
+    compra.previsao_entrega
+      ? compra.previsao_entrega.split("T")[0]
+      : ""
+  );
 
   // 📦 previsão de entrega (date)
   const previsaoEntregaFormatada =
@@ -64,10 +69,6 @@ export default function CompraCard({ compra, view, onAtualizar }) {
     setConferente("");
     onAtualizar();
   }
-
-  const previsaoEntregaFormatada =
-    compra.previsao_entrega &&
-    new Date(compra.previsao_entrega).toLocaleDateString("pt-BR");
 
   // ✅ validações
   const podeSalvarTriagem = !!centro.trim() && !!previsaoEntrega;
