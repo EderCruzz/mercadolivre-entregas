@@ -298,28 +298,6 @@ app.get("/entregas/sync", async (req, res) => {
         image = await buscarImagemGoogle(produto);
       }
 
-      // 🔒 REGRA: se o usuário já definiu, NÃO sobrescreve
-      let previsao_entrega = cachedEntrega?.previsao_entrega ?? null;
-      
-      if (!cachedEntrega?.previsao_entrega) {
-        const detalhePedido = await buscarDetalhePedido(order.id, accessToken);
-      
-        previsao_entrega =
-          detalhePedido?.shipping?.promised_delivery_time?.date ||
-          detalhePedido?.shipping?.estimated_delivery_time?.date ||
-          detalhePedido?.fulfillments?.[0]?.estimated_delivery_time?.date ||
-          null;
-      }
-
-      const shippingId = order.shipping?.id;
-
-      if (!previsao_entrega && shippingId) {
-        previsao_entrega = await buscarPrevisaoEntrega(
-          shippingId,
-          accessToken
-        );
-      }
-
       entregasMap.set(order.id, {
         pedido_id: order.id,
         produto,
@@ -350,15 +328,14 @@ app.get("/entregas/sync", async (req, res) => {
           centro_custo: e.centro_custo,
           conferente: e.conferente,
           data_recebimento: e.data_recebimento,
+          previsao_entrega: cachedEntrega?.previsao_entrega ?? null,
           status_pedido: e.status_pedido,
           data_compra: e.data_compra
         };
 
         if (e.image) update.image = e.image;
         if (e.vendedor) update.vendedor = e.vendedor;
-        if (!cachedEntrega?.previsao_entrega && e.previsao_entrega) {
-           update.previsao_entrega = e.previsao_entrega;
-         }
+        if (e.previsao_entrega) update.previsao_entrega = e.previsao_entrega;
         if (e.palavra_chave) update.palavra_chave = e.palavra_chave;
 
         return {
