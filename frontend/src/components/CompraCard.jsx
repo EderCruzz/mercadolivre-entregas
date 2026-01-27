@@ -11,11 +11,12 @@ export default function CompraCard({ compra, view, onAtualizar }) {
   const [palavraChave, setPalavraChave] = useState(compra.palavra_chave || "");
 
   // 📦 previsão de entrega (date)
-  const [previsaoEntrega, setPrevisaoEntrega] = useState(
-    compra.previsao_entrega
-      ? compra.previsao_entrega.split("T")[0]
-      : ""
-  );
+  const previsaoEntregaFormatada =
+  compra.previsao_entrega &&
+    compra.previsao_entrega.split("T")[0]
+      .split("-")
+      .reverse()
+      .join("/");
 
   const temImagemValida = compra.image && compra.image !== noImage;
 
