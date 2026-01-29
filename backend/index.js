@@ -246,7 +246,7 @@ app.get("/entregas/sync", async (req, res) => {
     /* =======================
        1️⃣ CACHE ATUAL
     ======================= */
-    const cache = await Entrega.find().sort({ data_compra: -1 });
+    const cache = await Entrega.find();
 
     /* =======================
        2️⃣ API MERCADO LIVRE
@@ -308,7 +308,6 @@ app.get("/entregas/sync", async (req, res) => {
         palavra_chave: cachedEntrega?.palavra_chave ?? null,
         conferente: cachedEntrega?.conferente ?? null,
         data_recebimento: cachedEntrega?.data_recebimento ?? null,
-        previsao_entrega,
         status_pedido: order.status,
         data_compra: order.date_created
       });
@@ -318,40 +317,38 @@ app.get("/entregas/sync", async (req, res) => {
 
     /* =======================
        3️⃣ ATUALIZA MONGO
+       ⚠️ NÃO TOCA EM previsao_entrega
     ======================= */
     await Entrega.bulkWrite(
-      entregasUnicas.map(e => {
-        const update = {
-          pedido_id: e.pedido_id,
-          produto: e.produto,
-          quantidade: e.quantidade,
-          centro_custo: e.centro_custo,
-          conferente: e.conferente,
-          data_recebimento: e.data_recebimento,
-          previsao_entrega: cachedEntrega?.previsao_entrega ?? null,
-          status_pedido: e.status_pedido,
-          data_compra: e.data_compra
-        };
-
-        if (e.image) update.image = e.image;
-        if (e.vendedor) update.vendedor = e.vendedor;
-        if (e.previsao_entrega) update.previsao_entrega = e.previsao_entrega;
-        if (e.palavra_chave) update.palavra_chave = e.palavra_chave;
-
-        return {
-          updateOne: {
-            filter: { pedido_id: e.pedido_id },
-            update: { $set: update },
-            upsert: true
-          }
-        };
-      })
+      entregasUnicas.map(e => ({
+        updateOne: {
+          filter: { pedido_id: e.pedido_id },
+          update: {
+            $set: {
+              produto: e.produto,
+              quantidade: e.quantidade,
+              centro_custo: e.centro_custo,
+              conferente: e.conferente,
+              data_recebimento: e.data_recebimento,
+              status_pedido: e.status_pedido,
+              data_compra: e.data_compra,
+              vendedor: e.vendedor,
+              image: e.image,
+              palavra_chave: e.palavra_chave
+            }
+          },
+          upsert: true
+        }
+      }))
     );
 
-    res.json({ message: "Entregas sincronizadas com sucesso" });
+    res.json({
+      message: "Entregas sincronizadas com sucesso",
+      total: entregasUnicas.length
+    });
 
   } catch (err) {
-    console.error(err);
+    console.error("❌ ERRO /entregas/sync:", err);
     res.status(500).json({ error: "Erro ao sincronizar entregas" });
   }
 });
