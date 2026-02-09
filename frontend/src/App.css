@@ -10,6 +10,25 @@ html {
   padding: 0 16px;
 }
 
+.search {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.search input {
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  padding: 6px 8px;
+}
+
+.search input:focus {
+  border-color: #7CB518;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(124, 181, 24, 0.25);
+}
+
 /* ===============================
    PAGINAÇÃO
 ================================ */

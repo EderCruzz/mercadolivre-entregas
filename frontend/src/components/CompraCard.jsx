@@ -70,6 +70,11 @@ export default function CompraCard({ compra, view, onAtualizar }) {
     onAtualizar();
   }
 
+  async function marcarPedidoEmitido() {
+    await api.put(`/entregas/${compra.pedido_id}/pedido-emitido`);
+    onAtualizar();
+  }
+
   // ✅ validações
   const podeSalvarTriagem = !!centro.trim() && !!previsaoEntrega;
   const podeConfirmarRecebimento = !!conferente.trim();
@@ -85,6 +90,9 @@ export default function CompraCard({ compra, view, onAtualizar }) {
           <img
             src={temImagemValida ? compra.image : noImage}
             alt={compra.produto}
+            onError={e => {
+              e.target.src = "./no-image.jpg"
+            }}
           />
         </div>
 
@@ -209,6 +217,28 @@ export default function CompraCard({ compra, view, onAtualizar }) {
                     }
                   )}
                 </strong>
+              </p>
+              <button
+                className="btn-pedido-emitido"
+                onClick={marcarPedidoEmitido}
+              >
+                Pedido emitido
+              </button>
+            </>
+          )}
+
+          {view === "pedidos-emitidos" && (
+            <>
+              <p className="meta">
+                Centro de custo: <strong>{compra.centro_custo}</strong>
+              </p>
+
+              <p className="meta">
+                Conferente: <strong>{compra.conferente}</strong>
+              </p>
+
+              <p className="meta">
+                ✅ Pedido administrativo emitido
               </p>
             </>
           )}

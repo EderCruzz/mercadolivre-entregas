@@ -197,50 +197,6 @@ async function buscarImagemGoogle(produto) {
   }
 }
 
-async function buscarPrevisaoEntrega(shippingId, accessToken) {
-  if (!shippingId) return null;
-
-  try {
-    const response = await axios.get(
-      `https://api.mercadolibre.com/shipments/${shippingId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
-      }
-    );
-
-    return (
-      response.data?.promised_delivery_time?.date ||
-      response.data?.estimated_delivery_time?.date ||
-      response.data?.estimated_delivery_time?.to ||
-      null
-    );
-
-  } catch (err) {
-    console.warn("⚠️ Erro ao buscar previsão de entrega:", shippingId);
-    return null;
-  }
-}
-
-async function buscarDetalhePedido(orderId, accessToken) {
-  try {
-    const response = await axios.get(
-      `https://api.mercadolibre.com/orders/${orderId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
-      }
-    );
-
-    return response.data;
-  } catch (err) {
-    console.warn("⚠️ Erro ao buscar detalhe do pedido:", orderId);
-    return null;
-  }
-}
-
 app.get("/entregas/sync", async (req, res) => {
   try {
     /* =======================
@@ -272,7 +228,8 @@ app.get("/entregas/sync", async (req, res) => {
     limiteBuscaImagem.setDate(hoje.getDate() - 20);
 
     for (const order of ordersResponse.data.results) {
-      const cachedEntrega = cache.find(c => c.pedido_id === order.id);
+      const orderId = Number(order.id);
+      const cachedEntrega = cache.find(c => c.pedido_id === orderId);
       const item = order.order_items?.[0];
 
       const produto = item?.item?.title || "Produto não identificado";
@@ -299,7 +256,7 @@ app.get("/entregas/sync", async (req, res) => {
       }
 
       entregasMap.set(order.id, {
-        pedido_id: order.id,
+        pedido_id: Number(order.id),
         produto,
         image,
         quantidade: item?.quantity ?? 1,
@@ -308,6 +265,7 @@ app.get("/entregas/sync", async (req, res) => {
         palavra_chave: cachedEntrega?.palavra_chave ?? null,
         conferente: cachedEntrega?.conferente ?? null,
         data_recebimento: cachedEntrega?.data_recebimento ?? null,
+        pedido_emitido: cachedEntrega?.pedido_emitido ?? false,
         status_pedido: order.status,
         data_compra: order.date_created
       });
@@ -322,7 +280,7 @@ app.get("/entregas/sync", async (req, res) => {
     await Entrega.bulkWrite(
       entregasUnicas.map(e => ({
         updateOne: {
-          filter: { pedido_id: e.pedido_id },
+          filter: { pedido_id: Number(e.pedido_id) },
           update: {
             $set: {
               produto: e.produto,
@@ -334,7 +292,8 @@ app.get("/entregas/sync", async (req, res) => {
               data_compra: e.data_compra,
               vendedor: e.vendedor,
               image: e.image,
-              palavra_chave: e.palavra_chave
+              palavra_chave: e.palavra_chave,
+              pedido_emitido: e.pedido_emitido
             }
           },
           upsert: true
@@ -358,6 +317,7 @@ app.get("/entregas", async (req, res) => {
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const PER_PAGE = 20;
     const skip = (page - 1) * PER_PAGE;
+
     const view = req.query.view;
 
     let filtro = {};
@@ -374,7 +334,19 @@ app.get("/entregas", async (req, res) => {
     }
 
     if (view === "entregues") {
-      filtro = { conferente: { $ne: null } };
+      filtro = {
+        conferente: { $ne: null },
+        $or: [
+          { pedido_emitido: false },
+          { pedido_emitido: { $exists: false } }
+        ]
+      };
+    }
+
+    if (view === "pedidos-emitidos") {
+      filtro = {
+        pedido_emitido: true 
+      }
     }
 
     const total = await Entrega.countDocuments(filtro);
@@ -581,8 +553,34 @@ app.put("/entregas/:pedido_id/palavra-chave", async (req, res) => {
   }
 });
 
-// const startCron = require("./src/cron/updateEntregas");
-// startCron();
+app.put("/entregas/:pedido_id/pedido-emitido", async (req, res) => {
+
+  try {
+    const pedidoId = Number(req.params.pedido_id);
+
+    const entrega = await Entrega.findOneAndUpdate(
+      { pedido_id: pedidoId },
+      { $set: { pedido_emitido: true } },
+      { new: true }
+    );
+
+    if (!entrega) {
+      return res.status(404).json({
+        error: "Entrega não encontrada",
+        pedido_id: pedidoId
+      });
+    }
+
+    res.json({
+      message: "Pedido marcado como emitido",
+      entrega
+    });
+
+  } catch (err) {
+    console.error("Erro ao marcar pedido emitido:", err);
+    res.status(500).json({ error: "Erro ao marcar pedido emitido" });
+  }
+});
 
 /* =======================
    Server

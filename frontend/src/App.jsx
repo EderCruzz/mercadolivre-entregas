@@ -11,8 +11,10 @@ function App() {
   const [view, setView] = useState("triagem");
   const [animating, setAnimating] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [search, setSearch] = useState("")
 
   useEffect(() => {
+    setSearch("")
     setPage(1);
     carregarCompras(1);
   }, [view]);
@@ -22,12 +24,12 @@ function App() {
   }, [page]);
 
   async function carregarCompras(pagina) {
-    const url = `/entregas?page=${pagina}&view=${view}`;
+    const url = `/entregas?page=${pagina}&view=${view}`;;
 
     try {
       setAnimating(true);
 
-      // ⏳ deixa o fade-out acontecer
+      // deixa o fade-out acontecer
       setTimeout(async () => {
         const res = await api.get(url);
 
@@ -37,7 +39,7 @@ function App() {
         // ⏳ pequena pausa pra entrada suave
         setTimeout(() => {
           setAnimating(false);
-        }, 50);
+        }, 300);
       }, 200);
     } catch (err) {
       console.error("Erro ao carregar compras:", err);
@@ -45,7 +47,7 @@ function App() {
     }
   }
 
-  // 🔄 SINCRONIZAÇÃO MANUAL
+  // SINCRONIZAÇÃO MANUAL
   async function sincronizarEntregas() {
     try {
       setSyncing(true);
@@ -62,6 +64,18 @@ function App() {
     }
   }
 
+  const comprasFiltradas = compras
+    .filter(compra =>
+      compra.produto
+        .toLowerCase()
+        .includes(search.toLowerCase())
+    )
+    .filter(compra => {
+      if (view === "pedidos-emitidos") return compra.pedido_emitido === true;
+      if (view === "entregues") return compra.conferente && !compra.pedido_emitido;
+      return true;
+    });
+
   return (
     <>
       <Header
@@ -72,7 +86,7 @@ function App() {
       <div className="container">
         <h1 className="page-title">COMPRAS E-COMMERCE</h1>
 
-        {/* 🔀 ABAS */}
+        {/* ABAS */}
         <div className="tabs">
           <button
             className={view === "triagem" ? "active" : ""}
@@ -92,13 +106,29 @@ function App() {
             className={view === "entregues" ? "active" : ""}
             onClick={() => setView("entregues")}
           >
-            Entregues
+            Entregues {/* Recebidos */}
           </button>
+
+          <button
+            className={view === "pedidos-emitidos" ? "active" : ""}
+            onClick={() => setView("pedidos-emitidos")}
+          >
+            Pedidos Emitidos
+          </button>
+        </div>
+
+        <div className="search">
+          <input 
+            type="text" 
+            placeholder="Pesquisar produto..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
         </div>
 
         {/* LISTA */}
         <div className={`cards-wrapper ${animating ? "fade-out" : "fade-in"}`}>
-          {compras.map(compra => (
+          {comprasFiltradas.map(compra => (
             <CompraCard
               key={compra.pedido_id}
               compra={compra}
@@ -109,7 +139,7 @@ function App() {
         </div>
 
         {/* PAGINAÇÃO */}
-        {totalPages > 1 && (
+        {!animating && totalPages > 1 && compras.length > 0 && (
           <div className="pagination">
             <button
               onClick={() => setPage(p => Math.max(p - 1, 1))}

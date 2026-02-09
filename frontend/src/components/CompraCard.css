@@ -33,7 +33,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 0; /* 🔥 evita overflow em grid */
+  min-width: 0; /* evita overflow em grid */
 }
 
 .compra-card-info .produto {
@@ -88,7 +88,7 @@
   font-weight: 600;
   color: #1976d2;
   font-size: 14px;
-  white-space: nowrap; /* desktop ok */
+  white-space: nowrap;
 }
 
 /* ===============================
@@ -184,6 +184,16 @@ button:disabled {
   background-color: #cfd8dc;
   cursor: not-allowed;
   opacity: 0.7;
+}
+
+.btn-pedido-emitido {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: #7CB518;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 /* ===============================
@@ -373,6 +383,21 @@ button:disabled {
     font-weight: 600;
     cursor: pointer;
   }
+
+  .compra-card.pedidos-emitidos {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .compra-card.pedidos-emitidos .compra-card-info {
+    width: 100%;
+  }
+
+  .compra-card.pedidos-emitidos .meta,
+  .compra-card.pedidos-emitidos .produto {
+    width: 100%;
+    word-break: break-word;
+  }
+
 }
 
 /* ===============================

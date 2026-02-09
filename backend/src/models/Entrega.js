@@ -2,7 +2,10 @@ const mongoose = require("mongoose");
 
 const EntregaSchema = new mongoose.Schema(
   {
-    pedido_id: Number,
+    pedido_id: {
+      type: Number,
+      required: true,
+    },
     produto: String,
     image: String,
 
@@ -20,7 +23,6 @@ const EntregaSchema = new mongoose.Schema(
     transportadora: String,
     rastreio: String,
 
-    // 🆕 NOVO CAMPO
     centro_custo: {
       type: String,
       default: null
@@ -29,8 +31,12 @@ const EntregaSchema = new mongoose.Schema(
       type: String,
       default: null
     },
-    conferente: String,   // 🆕 quem recebeu
-    data_recebimento: Date, // 🆕 quando recebeu
+    pedido_emitido: {
+      type: Boolean,
+      default: false
+    },
+    conferente: String,  
+    data_recebimento: Date, 
   },
   { timestamps: true }
 );
