@@ -106,7 +106,7 @@ function App() {
             className={view === "entregues" ? "active" : ""}
             onClick={() => setView("entregues")}
           >
-            Entregues {/* Recebidos */}
+            Recebidos
           </button>
 
           <button
