@@ -11,8 +11,8 @@ const app = express();
    MongoDB
 ======================= */
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log("✅ MongoDB conectado"))
-  .catch(err => console.error("❌ Erro MongoDB:", err));
+  .then(() => console.log("MongoDB conectado"))
+  .catch(err => console.error("Erro MongoDB:", err));
 
 /* =======================
    Models
@@ -31,20 +31,11 @@ async function getAccessTokenFromDB() {
   return token.access_token;
 }
 
-
 /* =======================
    Middlewares
 ======================= */
 app.use(cors());
 app.use(express.json());
-
-
-/* =======================
-   Rotas básicas
-======================= */
-app.get("/ping", (req, res) => {
-  res.send("pong");
-});
 
 /* =======================
    OAuth Login
@@ -98,12 +89,12 @@ app.get("/oauth/callback", async (req, res) => {
       user_id: response.data.user_id
     });
 
-    console.log("✅ TOKEN SALVO NO MONGODB COM SUCESSO");
+    console.log("TOKEN SALVO NO MONGODB COM SUCESSO");
 
     res.send("Autorização concluída! Pode fechar esta página.");
 
   } catch (err) {
-    console.error("❌ ERRO OAUTH:", err.response?.data || err.message);
+    console.error("ERRO OAUTH:", err.response?.data || err.message);
     res.status(500).send("Erro no OAuth");
   }
 });
@@ -188,7 +179,7 @@ async function buscarImagemGoogle(produto) {
     );
   } catch (err) {
     if (err.response?.status === 429) {
-      console.warn("⚠️ SerpAPI: limite atingido");
+      console.warn("SerpAPI: limite atingido");
       return null;
     }
 
@@ -200,12 +191,12 @@ async function buscarImagemGoogle(produto) {
 app.get("/entregas/sync", async (req, res) => {
   try {
     /* =======================
-       1️⃣ CACHE ATUAL
+       CACHE ATUAL
     ======================= */
     const cache = await Entrega.find();
 
     /* =======================
-       2️⃣ API MERCADO LIVRE
+       API MERCADO LIVRE
     ======================= */
     const accessToken = await getToken();
 
@@ -274,8 +265,7 @@ app.get("/entregas/sync", async (req, res) => {
     const entregasUnicas = Array.from(entregasMap.values());
 
     /* =======================
-       3️⃣ ATUALIZA MONGO
-       ⚠️ NÃO TOCA EM previsao_entrega
+       ATUALIZA MONGO
     ======================= */
     await Entrega.bulkWrite(
       entregasUnicas.map(e => ({
@@ -307,7 +297,7 @@ app.get("/entregas/sync", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ ERRO /entregas/sync:", err);
+    console.error("ERRO /entregas/sync:", err);
     res.status(500).json({ error: "Erro ao sincronizar entregas" });
   }
 });
@@ -585,7 +575,8 @@ app.put("/entregas/:pedido_id/pedido-emitido", async (req, res) => {
 /* =======================
    Server
 ======================= */
-const PORT = process.env.PORT || 3333;
+const PORT = 3333;
 app.listen(PORT, () => {
-  console.log(`🚀 Backend rodando na porta ${PORT}`);
+  console.log(`Backend rodando na porta ${PORT}`);
 });
+
