@@ -70,6 +70,31 @@ export default function PalavraChaveTV() {
 
     }, []);
 
+    useEffect(()=>{
+
+        const handler = () => {
+
+            if(document.fullscreenElement){
+            document.body.classList.add("fullscreen-active")
+            }
+
+        }
+
+        document.addEventListener("fullscreenchange",handler)
+
+        return ()=>document.removeEventListener("fullscreenchange",handler)
+
+    },[])
+
+    function entrarFullscreen() {
+
+        const el = document.documentElement;
+
+        if (el.requestFullscreen) el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        else if (el.msRequestFullscreen) el.msRequestFullscreen();
+    }
+
   return (
     <div className="tv-container">
 
@@ -77,6 +102,12 @@ export default function PalavraChaveTV() {
             <img src={logo} alt="CEPE" className="logo" />
             <h1>ENTREGAS COM PALAVRA-CHAVE</h1>
             <span></span>
+            <button
+                className="tv-fullscreen"
+                onClick={entrarFullscreen}    
+            >
+                Tela Cheia
+            </button>
         </div>
 
         <div className="tv-scroll" ref={scrollRef}>

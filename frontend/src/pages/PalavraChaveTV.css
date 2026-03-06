@@ -38,6 +38,29 @@ body {
   opacity: 0.8;
 }
 
+.tv-fullscreen {
+    background-color: #7cb518;
+    color: white;
+
+    border: none;
+    border-radius: 8px;
+
+    padding: 10px 18px;
+
+    font-size: 16px;
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+.tv-fullscreen:focus {
+    outline: 3px solid white;
+}
+
+.fullscreen-active .tv-fullscreen {
+    display: none;
+}
+
 .tv-scroll {
   flex:1;
   overflow:hidden;
