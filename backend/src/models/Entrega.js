@@ -35,6 +35,18 @@ const EntregaSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    cancelado: {
+      type: Boolean,
+      default: false
+    },
+    motivo_cancelamento: {
+      type: String,
+      default: null
+    },
+    data_cancelamento: {
+      type: Date,
+      default: null
+    },
     conferente: String,  
     data_recebimento: Date, 
   },

@@ -314,47 +314,76 @@ app.get("/entregas/sync", async (req, res) => {
 
 app.get("/entregas", async (req, res) => {
   try {
+    const noPagination = req.query.all === "true";
+
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const PER_PAGE = 20;
     const skip = (page - 1) * PER_PAGE;
 
     const view = req.query.view;
+    const search = req.query.search;
 
     let filtro = {};
 
-    if (view === "triagem") {
-      filtro = { centro_custo: null };
+    // CANCELADOS
+    if (view === "cancelados") {
+      filtro = { cancelado: true };
     }
 
-    if (view === "classificados") {
+    // TRIAGEM
+    if (view === "triagem") {
       filtro = {
-        centro_custo: { $ne: null },
-        conferente: null
+        centro_custo: null,
+        cancelado: { $ne: true }
       };
     }
 
+    // CLASSIFICADOS
+    if (view === "classificados") {
+      filtro = {
+        centro_custo: { $ne: null },
+        conferente: null,
+        cancelado: { $ne: true }
+      };
+    }
+
+    // ENTREGUES
     if (view === "entregues") {
       filtro = {
         conferente: { $ne: null },
         $or: [
           { pedido_emitido: false },
           { pedido_emitido: { $exists: false } }
-        ]
+        ],
+        cancelado: { $ne: true }
       };
     }
 
+    // PEDIDOS EMITIDOS
     if (view === "pedidos-emitidos") {
       filtro = {
-        pedido_emitido: true 
-      }
+        pedido_emitido: true,
+        cancelado: { $ne: true }
+      };
+    }
+
+    // BUSCA
+    if (search) {
+      filtro.produto = {
+        $regex: search,
+        $options: "i"
+      };
     }
 
     const total = await Entrega.countDocuments(filtro);
 
-    const entregas = await Entrega.find(filtro)
-      .sort({ data_compra: -1 })
-      .skip(skip)
-      .limit(PER_PAGE);
+    let query = Entrega.find(filtro).sort({ data_compra: -1 });
+
+    if (!noPagination) {
+      query = query.skip(skip).limit(PER_PAGE);
+    }
+
+    const entregas = await query;
 
     res.json({
       page,
@@ -579,6 +608,36 @@ app.put("/entregas/:pedido_id/pedido-emitido", async (req, res) => {
   } catch (err) {
     console.error("Erro ao marcar pedido emitido:", err);
     res.status(500).json({ error: "Erro ao marcar pedido emitido" });
+  }
+});
+
+app.put("/entregas/:pedido_id/cancelar", async (req, res) => {
+  try {
+    const { pedido_id } = req.params;
+    const motivo = req.body?.motivo || null;
+
+    const entrega = await Entrega.findOneAndUpdate(
+      { pedido_id: Number(pedido_id) },
+      {
+        cancelado: true,
+        motivo_cancelamento: motivo,
+        data_cancelamento: new Date()
+      },
+      { new: true }
+    );
+
+    if (!entrega) {
+      return res.status(404).json({ error: "Entrega não encontrada" });
+    }
+
+    res.json({
+      message: "Pedido movido para cancelados/devolvidos",
+      entrega
+    });
+
+  } catch (err) {
+    console.error("Erro ao cancelar pedido:", err);
+    res.status(500).json({ error: "Erro ao cancelar pedido" });
   }
 });
 
