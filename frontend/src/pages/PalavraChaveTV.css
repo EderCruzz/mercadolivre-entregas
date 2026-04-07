@@ -16,13 +16,20 @@ body {
 
   display:flex;
   justify-content:space-between;
-  align-items:center;
+  align-items: end;
 
   padding:20px 40px;
 
   background:#fff;
 
   border-bottom:2px solid #374f59;
+}
+
+.tv-header-title-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
 }
 
 .tv-header h1 {
@@ -145,4 +152,58 @@ body {
   font-size:18px;
   opacity:0.8;
   color: #063042;
+}
+
+@media (max-width: 768px) {
+  body {
+    overflow: auto;
+  }
+
+  .tv-scroll {
+    overflow-y: auto;
+  }
+
+  .tv-grid {
+    grid-template-columns: 1fr;
+    padding: 20px;
+    gap: 20px;
+  }
+
+  .tv-card {
+    grid-template-columns: 100px 1fr;
+    padding: 20px;
+    gap: 15px;
+  }
+
+  .tv-img img {
+    width: 90px;
+  }
+
+  .tv-key {
+    font-size: 24px;
+  }
+
+  .tv-product {
+    font-size: 16px;
+  }
+
+  .tv-previsao,
+  .tv-quantidade,
+  .tv-meta,
+  .tv-seller {
+    font-size: 14px;
+  }
+
+  .tv-header {
+    padding: 15px;
+  }
+
+  .tv-header h1 {
+    font-size: 20px;
+    text-align: center;
+  }
+
+  .tv-fullscreen {
+    display: none;
+  }
 }

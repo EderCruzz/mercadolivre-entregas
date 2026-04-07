@@ -1,4 +1,6 @@
 .compra-card {
+  position: relative;
+
   display: grid;
   grid-template-columns: 120px 1fr 180px;
   gap: 20px;
@@ -84,6 +86,7 @@
    VENDEDOR
 ================================ */
 .compra-card-seller {
+  margin-top: 12px;
   text-align: right;
   font-weight: 600;
   color: #1976d2;
@@ -92,7 +95,7 @@
 }
 
 /* ===============================
-   🔍 MODAL DE IMAGEM - FULL BODY
+   MODAL DE IMAGEM - FULL BODY
 ================================ */
 
 .image-modal {
@@ -151,7 +154,7 @@
   cursor: zoom-in;
 }
 
-/* 🎯 Centro de custo - foco verde */
+/* Centro de custo - foco verde */
 .compra-card .form-row input:focus {
   border-color: #7CB518;
   outline: none;
@@ -194,6 +197,78 @@ button:disabled {
   color: #fff;
   font-weight: 600;
   cursor: pointer;
+}
+
+.btn-cancelar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  position: absolute;
+  top: -8px;
+  right: -8px;
+
+  width: 30px;
+  height: 30px;
+
+  border: none;
+  border-radius: 50%;
+
+  border: 1px solid #e6e6e6;
+  background-color: #fff;
+
+  font-size: 16px;
+  font-weight: bold;
+
+  cursor: pointer;
+
+  transition: ease-out 0.2s;
+}
+
+.btn-cancelar img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.btn-cancelar:hover {
+  width: 32px;
+  height: 32px;
+
+  background-color: #e6e6e6;
+}
+
+.btn-editar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  position: absolute;
+  top: -8px;
+  right: 30px; /* lado do trash */
+
+  width: 30px;
+  height: 30px;
+
+  border: 1px solid #e6e6e6;
+  border-radius: 50%;
+  background-color: #fff;
+
+  cursor: pointer;
+  transition: ease-out 0.2s;
+}
+
+.btn-editar img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.btn-editar:hover {
+  width: 32px;
+  height: 32px;
+  background-color: #e6e6e6;
 }
 
 /* ===============================
@@ -275,18 +350,18 @@ button:disabled {
     grid-template-columns: 72px 1fr;
   }
 
-  /* VENDEDOR MOBILE (🔥 CAUSA DO BUG RESOLVIDA) */
+  /* VENDEDOR MOBILE  */
   .compra-card-seller {
     grid-column: 1 / -1;
     margin-top: 4px;
     text-align: left;
     font-size: 11px;
-    white-space: normal;       /* 🔥 REMOVE overflow */
+    white-space: normal;       /* REMOVE overflow */
     word-break: break-word;
     max-width: 100%;
   }
 
-  /* 📱 Evita zoom automático no mobile */
+  /* Evita zoom automático no mobile */
   .compra-card input {
     font-size: 16px;
   }
@@ -398,6 +473,54 @@ button:disabled {
     word-break: break-word;
   }
 
+  .compra-card.cancelados {
+    display: flex;
+    gap: 10px;
+  }
+
+  .compra-card.cancelados .compra-card-image {
+    margin-top: 0;
+    justify-content: flex-start;
+  }
+
+  .compra-card.cancelados .compra-card-image img {
+    width: 72px;
+  }
+
+  .compra-card.cancelados .compra-card-info {
+    width: 100%;
+  }
+
+  .compra-card.cancelados .produto,
+  .compra-card.cancelados .meta {
+    width: 100%;
+    word-break: break-word;
+  }
+
+  .btn-cancelar {
+    top: 8px;
+    right: 8px;
+
+    width: 28px;
+    height: 28px;
+  }
+
+  .btn-cancelar img {
+    width: 16px;
+    height: 16px;
+  }
+
+  .btn-editar {
+    top: 8px;
+    right: 42px;
+    width: 28px;
+    height: 28px;
+  }
+
+  .btn-editar img {
+    width: 16px;
+    height: 16px;
+  }
 }
 
 /* ===============================

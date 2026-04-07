@@ -14,32 +14,57 @@ export default function Dashboard() {
   const [syncing, setSyncing] = useState(false);
   const [search, setSearch] = useState("");
 
+  // troca de aba
   useEffect(() => {
     setSearch("");
     setPage(1);
-    carregarCompras(1);
+    carregarCompras(1, "");
   }, [view]);
 
+  // paginação
   useEffect(() => {
-    carregarCompras(page);
+    if (!search.trim()) {
+      carregarCompras(page);
+    }
   }, [page]);
 
-  async function carregarCompras(pagina) {
-    const url = `/entregas?page=${pagina}&view=${view}`;
+  // busca
+  useEffect(() => {
+    if (search.trim() !== "") {
+      // busca ativa > pega tudo
+      carregarCompras(1, search);
+    } else {
+      // busca limpa > volta paginação normal
+      setPage(1);
+      carregarCompras(1, "");
+    }
+  }, [search]);
+
+  async function carregarCompras(pagina, termoBusca = search) {
+    let url = `/entregas?view=${view}`;
+
+    if (termoBusca && termoBusca.trim() !== "") {
+      url += `&search=${encodeURIComponent(termoBusca)}&all=true`;
+    } else {
+      url += `&page=${pagina}`;
+    }
 
     try {
+      // inicia fade-out
       setAnimating(true);
 
-      setTimeout(async () => {
-        const res = await api.get(url);
+      // espera animação sair
+      await new Promise(resolve => setTimeout(resolve, 200));
 
-        setCompras(res.data.data);
-        setTotalPages(res.data.totalPages);
+      const res = await api.get(url);
 
-        setTimeout(() => {
-          setAnimating(false);
-        }, 300);
-      }, 200);
+      setCompras(res.data.data || []);
+      setTotalPages(res.data.totalPages);
+
+      // pequeno delay pra evitar "flash"
+      setTimeout(() => {
+        setAnimating(false);
+      }, 100);
 
     } catch (err) {
       console.error("Erro ao carregar compras:", err);
@@ -63,15 +88,31 @@ export default function Dashboard() {
     }
   }
 
-  const comprasFiltradas = compras
-    .filter(compra =>
-      compra.produto
-        .toLowerCase()
-        .includes(search.toLowerCase())
-    )
-    .filter(compra => {
-      if (view === "pedidos-emitidos") return compra.pedido_emitido === true;
-      if (view === "entregues") return compra.conferente && !compra.pedido_emitido;
+  // AGORA SEM FILTRO DE BUSCA AQUI
+  const comprasFiltradas = search
+    ? compras // usa direto o resultado do backend
+    : (compras || []).filter(compra => {
+      if (!compra) return false;
+
+      if (view === "cancelados") return compra.cancelado === true;
+      if (compra.cancelado) return false;
+
+      if (view === "entregues") {
+        return compra.conferente && !compra.pedido_emitido;
+      }
+
+      if (view === "pedidos-emitidos") {
+        return compra.pedido_emitido === true;
+      }
+
+      if (view === "classificados") {
+        return compra.centro_custo && !compra.conferente;
+      }
+
+      if (view === "triagem") {
+        return !compra.centro_custo;
+      }
+
       return true;
     });
 
@@ -86,32 +127,24 @@ export default function Dashboard() {
         <h1 className="page-title">COMPRAS E-COMMERCE</h1>
 
         <div className="tabs">
-          <button
-            className={view === "triagem" ? "active" : ""}
-            onClick={() => setView("triagem")}
-          >
+          <button className={view === "triagem" ? "active" : ""} onClick={() => setView("triagem")}>
             Triagem
           </button>
 
-          <button
-            className={view === "classificados" ? "active" : ""}
-            onClick={() => setView("classificados")}
-          >
+          <button className={view === "classificados" ? "active" : ""} onClick={() => setView("classificados")}>
             Classificados
           </button>
 
-          <button
-            className={view === "entregues" ? "active" : ""}
-            onClick={() => setView("entregues")}
-          >
+          <button className={view === "entregues" ? "active" : ""} onClick={() => setView("entregues")}>
             Recebidos
           </button>
 
-          <button
-            className={view === "pedidos-emitidos" ? "active" : ""}
-            onClick={() => setView("pedidos-emitidos")}
-          >
+          <button className={view === "pedidos-emitidos" ? "active" : ""} onClick={() => setView("pedidos-emitidos")}>
             Pedidos Emitidos
+          </button>
+
+          <button className={view === "cancelados" ? "active" : ""} onClick={() => setView("cancelados")}>
+            Cancelados/ Devolvidos
           </button>
         </div>
 
@@ -135,7 +168,7 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {!animating && totalPages > 1 && compras.length > 0 && (
+        {!search && !animating && totalPages > 1 && compras.length > 0 && (
           <div className="pagination">
             <button
               onClick={() => setPage(p => Math.max(p - 1, 1))}

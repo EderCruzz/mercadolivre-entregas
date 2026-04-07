@@ -3,6 +3,10 @@ import api from "../services/api";
 import noImage from "../assets/no-image.jpg";
 import "./CompraCard.css";
 import ImageModal from "./ImageModal";
+import Trash from "../assets/trash-icon.png";
+
+import EditIcon from "../assets/edit-icon.png";
+import EditarPalavraModal from "./EditarPalavraModal";
 
 export default function CompraCard({ compra, view, onAtualizar }) {
   const [centro, setCentro] = useState("");
@@ -14,8 +18,9 @@ export default function CompraCard({ compra, view, onAtualizar }) {
       ? compra.previsao_entrega.split("T")[0]
       : ""
   );
+  const [modalEditar, setModalEditar] = useState(false);
 
-  // 📦 previsão de entrega (date)
+  // previsão de entrega (date)
   const previsaoEntregaFormatada =
   compra.previsao_entrega &&
     compra.previsao_entrega.split("T")[0]
@@ -25,7 +30,7 @@ export default function CompraCard({ compra, view, onAtualizar }) {
 
   const temImagemValida = compra.image && compra.image !== noImage;
 
-  // 🔒 trava scroll quando modal aberto
+  // trava scroll quando modal aberto
   useEffect(() => {
     document.body.style.overflow = imagemAberta ? "hidden" : "";
     return () => {
@@ -35,7 +40,7 @@ export default function CompraCard({ compra, view, onAtualizar }) {
 
   async function salvarTriagem() {
     try {
-      // 🔴 obrigatórios
+      // obrigatórios
       if (!centro.trim() || !previsaoEntrega) return;
 
       await api.put(`/entregas/${compra.pedido_id}/centro-custo`, {
@@ -46,7 +51,7 @@ export default function CompraCard({ compra, view, onAtualizar }) {
         previsao_entrega: previsaoEntrega
       });
 
-      // 🟡 opcional
+      // opcional
       if (palavraChave.trim()) {
         await api.put(`/entregas/${compra.pedido_id}/palavra-chave`, {
           palavra_chave: palavraChave
@@ -75,13 +80,60 @@ export default function CompraCard({ compra, view, onAtualizar }) {
     onAtualizar();
   }
 
-  // ✅ validações
+  async function cancelarPedido() {
+    const confirmar = window.confirm(
+      "Tem certeza que deseja mover para Cancelados/Devolvidos?"
+    );
+
+    if (!confirmar) return;
+
+    try {
+      await api.put(`/entregas/${compra.pedido_id}/cancelar`);
+      onAtualizar();
+    } catch (err) {
+      console.error("Erro ao cancelar:", err);
+    }
+  }
+
+  async function salvarPalavraChave(novaPalavra) {
+    if (!novaPalavra.trim()) return;
+
+    try {
+      await api.put(`/entregas/${compra.pedido_id}/palavra-chave`, {
+        palavra_chave: novaPalavra
+      });
+
+      setModalEditar(false);
+      onAtualizar();
+
+    } catch (err) {
+      console.error("Erro ao salvar palavra-chave:", err);
+    }
+  }
+
+  // validações
   const podeSalvarTriagem = !!centro.trim() && !!previsaoEntrega;
   const podeConfirmarRecebimento = !!conferente.trim();
 
   return (
     <>
       <div className={`compra-card ${view}`}>
+        {view !== "cancelados" && (
+        <>
+          {view === "classificados" && (
+              <button
+                className="btn-editar"
+                onClick={() => setModalEditar(true)}
+              >
+                <img src={EditIcon} alt="Editar" />
+              </button>
+            )}
+
+            <button className="btn-cancelar" onClick={cancelarPedido}>
+              <img src={Trash} alt="Lixeira" />
+            </button>
+          </>
+        )}
         {/* IMAGEM */}
         <div
           className={`compra-card-image ${temImagemValida ? "clickable" : ""}`}
@@ -107,7 +159,7 @@ export default function CompraCard({ compra, view, onAtualizar }) {
             </strong>
           </p>
 
-          {/* 📦 PREVISÃO FIXA */}
+          {/* PREVISÃO FIXA */}
           {previsaoEntregaFormatada && view !== "entregues" && (
             <p className="meta">
               Chega em <strong>{previsaoEntregaFormatada}</strong>
@@ -118,7 +170,7 @@ export default function CompraCard({ compra, view, onAtualizar }) {
             Quantidade: <strong>{compra.quantidade}</strong>
           </p>
 
-          {/* 🧾 TRIAGEM */}
+          {/* TRIAGEM */}
           {view === "triagem" && (
             <div className="form-row vertical triagem-row">
               <div className="date-wrapper">
@@ -157,7 +209,7 @@ export default function CompraCard({ compra, view, onAtualizar }) {
             </div>
           )}
 
-          {/* 📦 CLASSIFICADOS */}
+          {/* CLASSIFICADOS */}
           {view === "classificados" && (
             <>
               <p className="meta">
@@ -186,7 +238,7 @@ export default function CompraCard({ compra, view, onAtualizar }) {
             </>
           )}
 
-          {/* ✅ ENTREGUES */}
+          {/* ENTREGUES */}
           {view === "entregues" && (
             <>
               <p className="meta">
@@ -252,6 +304,12 @@ export default function CompraCard({ compra, view, onAtualizar }) {
       <ImageModal
         image={imagemAberta && temImagemValida ? compra.image : null}
         onClose={() => setImagemAberta(false)}
+      />
+      <EditarPalavraModal
+        aberto={modalEditar}
+        onClose={() => setModalEditar(false)}
+        onSalvar={salvarPalavraChave}
+        palavraAtual={compra.palavra_chave}
       />
     </>
   );

@@ -113,7 +113,7 @@ html {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition: opacity 0.35s ease, transform 0.35s ease;
 }
 
 .cards-wrapper.fade-out {

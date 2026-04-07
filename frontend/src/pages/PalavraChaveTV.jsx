@@ -7,6 +7,8 @@ export default function PalavraChaveTV() {
 
   const [compras, setCompras] = useState([]);
 
+  const [isMobile, setIsMobile] = useState(false);
+
   const scrollRef = useRef(null);
 
   async function carregar() {
@@ -34,6 +36,18 @@ export default function PalavraChaveTV() {
   }
 
   useEffect(() => {
+    function checkMobile() {
+        setIsMobile(window.innerWidth <= 768);
+    }
+
+    checkMobile();
+
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
+    }, []);
+
+  useEffect(() => {
 
     carregar();
 
@@ -50,6 +64,8 @@ export default function PalavraChaveTV() {
     let direction = 1;
 
     const interval = setInterval(() => {
+
+        if (isMobile) return;
 
         const el = scrollRef.current;
         if (!el) return;
@@ -68,7 +84,7 @@ export default function PalavraChaveTV() {
 
     return () => clearInterval(interval);
 
-    }, []);
+    }, [isMobile]);
 
     useEffect(()=>{
 
@@ -100,14 +116,16 @@ export default function PalavraChaveTV() {
 
         <div className="tv-header">
             <img src={logo} alt="CEPE" className="logo" />
-            <h1>ENTREGAS COM PALAVRA-CHAVE</h1>
-            <span></span>
-            <button
-                className="tv-fullscreen"
-                onClick={entrarFullscreen}    
-            >
-                Tela Cheia
-            </button>
+
+            <div className="tv-header-title-button">
+                <h1>ENTREGAS COM PALAVRA-CHAVE</h1>
+                <button
+                    className="tv-fullscreen"
+                    onClick={entrarFullscreen}    
+                >
+                    Tela Cheia
+                </button>
+            </div>
         </div>
 
         <div className="tv-scroll" ref={scrollRef}>
